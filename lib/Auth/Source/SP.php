@@ -949,7 +949,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source {
         //Generate the logout requestx
         $req = base64_encode($eidas->generateSLORequest($providerName,
                                                         $endpoint,
-                                                        $returnPage,
+                                                        $providerName,
                                                         $id));
         SimpleSAML\Logger::debug("Generated LogoutRequest: ".$req);
         
