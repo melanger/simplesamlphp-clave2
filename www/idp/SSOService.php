@@ -1,9 +1,8 @@
 <?php
 /**
- * The SSOService is part of the SAML 2.0 - eIDAS IdP code, and it
- * receives incoming Authentication Requests from a SAML 2.0 SP,
- * parses, and process it, and then authenticates the user and sends
- * the user back to the SP with an Authentication Response.
+ * The SSOService is part of the SAML 2.0 - eIDAS IdP code, and it receives incoming Authentication Requests from a SAML
+ * 2.0 SP, parses, and process it, and then authenticates the user and sends the user back to the SP with an
+ * Authentication Response.
  *
  * @author Francisco José Aragó Monzonís, RedIRIS <francisco.arago@externos.rediris.es>
  * @package Clave
@@ -22,10 +21,9 @@
 
 // TODO: when everything works, rename module and everything to eIDAS, remove clave references but for the specific clave impl.
 
-// TODO: improve SSO and WAYF script to use SSPHP template 
+// TODO: improve SSO and WAYF script to use SSPHP template
 
-//echo __FILE__;
-//require_once('../../../../www/_include.php');  // TODO: this line maybe needed?
+
 
 //print_r(get_included_files());
 
@@ -37,10 +35,10 @@
 SimpleSAML\Logger::info('eIDAS - IdP.SSOService: Accessing SAML 2.0 - eIDAS IdP endpoint SSOService');
 
 //Hosted IdP config
-$idpEntityId = "__DYNAMIC:1__";
+$idpEntityId = '__DYNAMIC:1__';
 
-$hostedIdpMeta = sspmod_clave_Tools::getMetadataSet($idpEntityId,"clave-idp-hosted");
-SimpleSAML\Logger::debug('eIDAS IDP hosted metadata ('.$idpEntityId.'): '.print_r($hostedIdpMeta,true));
+$hostedIdpMeta = sspmod_clave_Tools::getMetadataSet($idpEntityId, 'clave-idp-hosted');
+SimpleSAML\Logger::debug('eIDAS IDP hosted metadata (' . $idpEntityId . '): ' . print_r($hostedIdpMeta, true));
 
 
 //Get the idp class
@@ -50,61 +48,65 @@ $idp = sspmod_clave_IdP::getById($idpEntityId);
 
 //Filter the POST params to be forwarded to the remote IdP
 //(based on the hosted IDP metadata)
-$expectedRequestPostParams = $hostedIdpMeta->getArray('idp.post.allowed', array());
+$expectedRequestPostParams = $hostedIdpMeta->getArray('idp.post.allowed', []);
 
-$forwardedParams = array();
-foreach ($_POST as $name => $value){
-    if(in_array($name,$expectedRequestPostParams))
+$forwardedParams = [];
+foreach ($_POST as $name => $value) {
+    if (in_array($name, $expectedRequestPostParams, true)) {
         $forwardedParams[$name] = $value;
+    }
 }
 
 
 // TODO: support HTTP-REDIRECT binding (move the post-get part somewhere else? use the SAML2\Binding ?)
 
 //Receive the AuthnRequest
-if(!array_key_exists('SAMLRequest',$_POST))
-   	throw new SimpleSAML\Error\BadRequest('SAMLRequest POST param not set.');
-if($_POST['SAMLRequest'] == null || $_POST['SAMLRequest'] == "")
-   	throw new SimpleSAML\Error\BadRequest('SAMLRequest POST param empty.');
+if (! array_key_exists('SAMLRequest', $_POST)) {
+    throw new SimpleSAML\Error\BadRequest('SAMLRequest POST param not set.');
+}
+if ($_POST['SAMLRequest'] === null || $_POST['SAMLRequest'] === '') {
+    throw new SimpleSAML\Error\BadRequest('SAMLRequest POST param empty.');
+}
 $authnRequest = $_POST['SAMLRequest'];
 
 
 //Is there a RelayState?
 $relayState = '';
-if (array_key_exists('RelayState', $_POST))
+if (array_key_exists('RelayState', $_POST)) {
     $relayState = $_POST['RelayState'];
+}
 
 
 
 //Decode the request
-$authnRequest = base64_decode($authnRequest);
-SimpleSAML\Logger::debug("Received authnRequest from remote SP: ".$authnRequest);
+$authnRequest = base64_decode($authnRequest, true);
+SimpleSAML\Logger::debug('Received authnRequest from remote SP: ' . $authnRequest);
 
 
-//eIDAS protocol library object 
+//eIDAS protocol library object
 $eidas = new sspmod_clave_SPlib();
 
 
 //Entity ID of the remote SP (requestor)
 $spEntityId = $eidas->getIssuer($authnRequest);
-if($spEntityId == "") // Extra-Dirty workaround for the Clave 2.0 Java SPs that DON'T send an issuer field
-    $spEntityId = $eidas->getProviderName($authnRequest);     // TODO: VERIFCAR
-SimpleSAML\Logger::info("Remote SP Issuer: ".$spEntityId);
+if ($spEntityId === '') { // Extra-Dirty workaround for the Clave 2.0 Java SPs that DON'T send an issuer field
+    $spEntityId = $eidas->getProviderName($authnRequest);
+}     // TODO: VERIFCAR
+SimpleSAML\Logger::info('Remote SP Issuer: ' . $spEntityId);
 
 //Load the remote SP metadata
-$spMetadata = sspmod_clave_Tools::getSPMetadata($hostedIdpMeta,$spEntityId);
-SimpleSAML\Logger::debug('Clave SP remote metadata ('.$spEntityId.'): '.print_r($spMetadata,true));
+$spMetadata = sspmod_clave_Tools::getSPMetadata($hostedIdpMeta, $spEntityId);
+SimpleSAML\Logger::debug('Clave SP remote metadata (' . $spEntityId . '): ' . print_r($spMetadata, true));
 
 
 
 //Get the mode of operation this IdP must expect (based on the remote
 //SP specific or the hosted IdP default)
-$IdPdialect    = $spMetadata->getString('dialect',
-                                        $hostedIdpMeta->getString('dialect'));
-$IdPsubdialect = $spMetadata->getString('subdialect',
-                                        $hostedIdpMeta->getString('subdialect'));
-if ($IdPdialect === 'eidas')
+$IdPdialect = $spMetadata->getString('dialect', $hostedIdpMeta->getString('dialect'));
+$IdPsubdialect = $spMetadata->getString('subdialect', $hostedIdpMeta->getString('subdialect'));
+if ($IdPdialect === 'eidas') {
     $eidas->setEidasMode();
+}
 
 
 //Trust the alleged requester certificate we have in local metadata
@@ -114,7 +116,7 @@ $eidas->addTrustedRequestIssuer($spEntityId, $certs);
 
 
 //Validate AuthnRequest
-try{
+try {
     $eidas->validateStorkRequest($authnRequest);
 } catch (Exception $e) {
     throw new SimpleSAML\Error\BadRequest($e->getMessage());
@@ -125,75 +127,82 @@ try{
 //Extract all relevant data for the retransmitted request (including stork extensions)
 $reqData = $eidas->getStorkRequestData();
 
-SimpleSAML\Logger::debug("SP Request data: ".print_r($reqData,true));
+SimpleSAML\Logger::debug('SP Request data: ' . print_r($reqData, true));
 
 
 //Log for statistics: received AuthnRequest at the hosted IdP
 //$aux = $eidas->getStorkRequestData($authnRequest);
-SimpleSAML\Stats::log('clave:idp:AuthnRequest', array(
+SimpleSAML\Stats::log('clave:idp:AuthnRequest', [
     'spEntityID' => $spEntityId,
     'idpEntityID' => $hostedIdpMeta->getString('issuer', ''),
-    'forceAuthn' => TRUE,//$reqData['forceAuthn'],
+    'forceAuthn' => true,
+    //$reqData['forceAuthn'],
     'isPassive' => $reqData['isPassive'],
-    'protocol' => 'saml2-'.$IdPdialect,
-    'idpInit' => FALSE,
-));
+    'protocol' => 'saml2-' . $IdPdialect,
+    'idpInit' => false,
+]);
 
 
 
 $authnContext = null;
-if(isset($reqData['LoA']))
-    $authnContext = array(
-        'AuthnContextClassRef' => array($reqData['LoA']),
-        'Comparison'           => $reqData['Comparison'],
-    );
+if (isset($reqData['LoA'])) {
+    $authnContext = [
+        'AuthnContextClassRef' => [$reqData['LoA']],
+        'Comparison' => $reqData['Comparison'],
+    ];
+}
 
 
 $idFormat = sspmod_clave_SPlib::NAMEID_FORMAT_UNSPECIFIED;
-if(isset($reqData['IdFormat']))
+if (isset($reqData['IdFormat'])) {
     $idFormat = $reqData['IdFormat'];
+}
 
-$idAllowCreate = FALSE;
-if(isset($reqData['IdAllowCreate']))
+$idAllowCreate = false;
+if (isset($reqData['IdAllowCreate'])) {
     $idAllowCreate = $reqData['IdAllowCreate'];
+}
 
 
 //Set the state to be kept during the procedure    // TODO: if implementing multiple dialect classes, make the callback classnames depend on the dialect/subdialect
-$state = array(
+$state = [
 
-    //Standard by SSPHP    
-    'Responder'                                   => array('sspmod_clave_IdP_eIDAS', 'sendResponse'), //The callback to send the response for this request
-    SimpleSAML\Auth\State::EXCEPTION_HANDLER_FUNC => array('sspmod_clave_IdP_eIDAS', 'handleAuthError'),
-    SimpleSAML\Auth\State::RESTART                => SimpleSAML\Utils\HTTP::getSelfURLNoQuery(),
+    //Standard by SSPHP
+    'Responder' => ['sspmod_clave_IdP_eIDAS', 'sendResponse'],
+    //The callback to send the response for this request
+    SimpleSAML\Auth\State::EXCEPTION_HANDLER_FUNC => ['sspmod_clave_IdP_eIDAS', 'handleAuthError'],
+    SimpleSAML\Auth\State::RESTART => SimpleSAML\Utils\HTTP::getSelfURLNoQuery(),
 
-    'SPMetadata'                  => $spMetadata->toArray(),
-    'saml:RelayState'             => $relayState,
-    'saml:RequestId'              => $reqData['id'],
-    'saml:IDPList'                => $reqData['idplist'],
-    'saml:ProxyCount'             => null,
-    'saml:RequesterID'            => array(),
-    'ForceAuthn'                  => TRUE,
-    'isPassive'                   => $reqData['isPassive'],
-    'saml:ConsumerURL'            => $reqData['assertionConsumerService'],
-    'saml:Binding'                => SAML2\Constants::BINDING_HTTP_POST, // TODO: support HTTP_REDIRECT
-    'saml:NameIDFormat'           => $idFormat,
-    'saml:AllowCreate'            => $idAllowCreate,
-    'saml:Extensions'             => $reqData,
+    'SPMetadata' => $spMetadata->toArray(),
+    'saml:RelayState' => $relayState,
+    'saml:RequestId' => $reqData['id'],
+    'saml:IDPList' => $reqData['idplist'],
+    'saml:ProxyCount' => null,
+    'saml:RequesterID' => [],
+    'ForceAuthn' => true,
+    'isPassive' => $reqData['isPassive'],
+    'saml:ConsumerURL' => $reqData['assertionConsumerService'],
+    'saml:Binding' => SAML2\Constants::BINDING_HTTP_POST,
+    // TODO: support HTTP_REDIRECT
+    'saml:NameIDFormat' => $idFormat,
+    'saml:AllowCreate' => $idAllowCreate,
+    'saml:Extensions' => $reqData,
     'saml:AuthnRequestReceivedAt' => microtime(true),
-    'saml:RequestedAuthnContext'  => $authnContext,
+    'saml:RequestedAuthnContext' => $authnContext,
 
     //My additions
-    'sp:postParams'        =>   $forwardedParams,
-    'idp:postParams:mode'  =>   'forward', //To mark the ACS whether to return the extra POST params as attributes or as POST params to be forwarded
-    'eidas:request'        =>   $authnRequest,
-    'eidas:requestData'    =>   $reqData,
+    'sp:postParams' => $forwardedParams,
+    'idp:postParams:mode' => 'forward',
+    //To mark the ACS whether to return the extra POST params as attributes or as POST params to be forwarded
+    'eidas:request' => $authnRequest,
+    'eidas:requestData' => $reqData,
 
 
-    
-);
+
+];
 
 
-SimpleSAML\Logger::debug('------------------STATE at SSOService: '.print_r($state,true));
+SimpleSAML\Logger::debug('------------------STATE at SSOService: ' . print_r($state, true));
 
 // Invoke the IdP Class handler.
 $idp->handleAuthenticationRequest($state);

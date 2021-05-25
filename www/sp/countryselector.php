@@ -2,58 +2,59 @@
 
 /**
  * Country selector interface for eIDAS
- *
  */
 
 //Hosted IdP config
-$claveConfig = sspmod_clave_Tools::getMetadataSet("__DYNAMIC:1__","clave-idp-hosted");
-SimpleSAML\Logger::debug('Clave Idp hosted metadata: '.print_r($claveConfig,true));
+$claveConfig = sspmod_clave_Tools::getMetadataSet('__DYNAMIC:1__', 'clave-idp-hosted');
+SimpleSAML\Logger::debug('Clave Idp hosted metadata: ' . print_r($claveConfig, true));
 
 
 //Hosted SP config
-$hostedSP = $claveConfig->getString('hostedSP', NULL);
-if($hostedSP == NULL)
-    throw new SimpleSAML\Error\Exception("No clave hosted SP configuration defined in clave bridge configuration.");
-$claveSP = sspmod_clave_Tools::getMetadataSet($hostedSP,"clave-sp-hosted");
-SimpleSAML\Logger::debug('Clave SP hosted metadata: '.print_r($claveSP,true));
+$hostedSP = $claveConfig->getString('hostedSP', null);
+if ($hostedSP === null) {
+    throw new SimpleSAML\Error\Exception('No clave hosted SP configuration defined in clave bridge configuration.');
+}
+$claveSP = sspmod_clave_Tools::getMetadataSet($hostedSP, 'clave-sp-hosted');
+SimpleSAML\Logger::debug('Clave SP hosted metadata: ' . print_r($claveSP, true));
 
 
 //Get the list of countries
-$countries = $claveSP->getArray('countries', array());
+$countries = $claveSP->getArray('countries', []);
 
 
 
 
 //$spEntityId    = $_GET['entityID']; //Hosted SP entity ID
-$returnURL     = SimpleSAML\Utils\HTTP::checkURLAllowed($_GET['return']);
+$returnURL = SimpleSAML\Utils\HTTP::checkURLAllowed($_GET['return']);
 //$returnIdParam = $_GET['returnIDParam'];
-$returnIdParam = "country";
+$returnIdParam = 'country';
 
 $countryLines = '';
-foreach($countries as $countryCode => $countryName)
-    $countryLines .= '<option value="'.$countryCode.'">'.$countryName.'</option>';
+foreach ($countries as $countryCode => $countryName) {
+    $countryLines .= '<option value="' . $countryCode . '">' . $countryName . '</option>';
+}
 
 
-$page =  '<html lang="es">'
-    .'  <body>'
-    .'    <form action="'.$returnURL.'" method="POST">'
-    .'      Seleccione su país de orígen:<br/>'
-    .'      <br/>'
-    .'      <select name="'.$returnIdParam.'">'
-    .$countryLines
-    .'      </select>'
-    .'      <br/>'
-    .'      <br/>'
-    .'      <input type="submit" value="Continuar">'
-    .'    </form>'
-    .'  </body>'
-    .'</html>';
+$page = '<html lang="es">'
+    . '  <body>'
+    . '    <form action="' . $returnURL . '" method="POST">'
+    . '      Seleccione su país de orígen:<br/>'
+    . '      <br/>'
+    . '      <select name="' . $returnIdParam . '">'
+    . $countryLines
+    . '      </select>'
+    . '      <br/>'
+    . '      <br/>'
+    . '      <input type="submit" value="Continuar">'
+    . '    </form>'
+    . '  </body>'
+    . '</html>';
 
 
 echo $page;
 
 
-//\SimpleSAML\Utils\HTTP::redirectTrustedURL($returnURL,array($returnIdParam => 'ES'));
+
 
 
 
@@ -63,10 +64,10 @@ echo $page;
 
 /*
 // TODO implement all html in the module as templates (see if the other modules redirects use the standard calls)
-  
+
         // Make use of an XHTML template to present the select IdP choice to the user. Currently the supported options
         // is either a drop down menu or a list view.
-         
+
         switch ($this->config->getString('idpdisco.layout', 'links')) {
             case 'dropdown':
                 $templateFile = 'selectidp-dropdown.php';

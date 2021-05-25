@@ -1,7 +1,6 @@
 <?php
 /**
  * Clave IdP for simpleSAMLphp. [DEPRECATED]
- *
  */
 
 
