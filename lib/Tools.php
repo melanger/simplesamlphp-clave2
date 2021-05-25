@@ -1,6 +1,8 @@
 <?php
 
 
+use SimpleSAML\Configuration;
+
 class sspmod_clave_Tools
 {
     /**
@@ -16,7 +18,7 @@ class sspmod_clave_Tools
      * @return SimpleSAML\Configuration
      * @throws Exception
      */
-    public static function getMetadataSet($entityId, $set)
+    public static function getMetadataSet($entityId, $set): Configuration
     {
         $globalConfig = SimpleSAML\Configuration::getInstance();
         $metadataDirectory = $globalConfig->getString('metadatadir', 'metadata/');
@@ -53,11 +55,10 @@ class sspmod_clave_Tools
      * @throws SimpleSAML\Error\MetadataNotFound
      * @throws Exception
      */
-    public static function getSPMetadata($claveConfig, $spEntityId)
+    public static function getSPMetadata(Configuration $claveConfig, $spEntityId): ?Configuration
     {
 
         //Retrieve the metadata for the requesting SP
-        $spMetadata = null;
         if (! $claveConfig->getBoolean('sp.useSaml20Meta', false)) {
             $spMetadata = self::getMetadataSet($spEntityId, 'clave-sp-remote');
         } else {
@@ -71,11 +72,9 @@ class sspmod_clave_Tools
     /**
      * Reads file relative to the configured cert directory
      *
-     * @param string $relativePath
-     * @return false|string
      * @throws Exception
      */
-    public static function readCertKeyFile($relativePath)
+    public static function readCertKeyFile(string $relativePath): string
     {
         if ($relativePath === null || $relativePath === '') {
             throw new Exception('Unable to load cert or key from file: path is empty');
@@ -102,9 +101,7 @@ class sspmod_clave_Tools
             $idpList .= $idp . ';';
         }
         //Remove trailing separator
-        $idpList = substr($idpList, 0, strlen($idpList) - 1);
-
-        return $idpList;
+        return substr($idpList, 0, strlen($idpList) - 1);
     }
 
     /*
@@ -134,10 +131,9 @@ class sspmod_clave_Tools
 
     /**
      * @param SimpleSAML\Configuration $metadata
-     * @return array
      * @throws Exception
      */
-    public static function findX509SignCertOnMetadata($metadata)
+    public static function findX509SignCertOnMetadata(Configuration $metadata): array
     {
         $ret = [];
 

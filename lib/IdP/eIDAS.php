@@ -1,4 +1,7 @@
 <?php
+
+use SAML2\Response;
+
 /**
  * The specific parts of the IdP for SAML 2.0 eIDAS Protocol and deployment. Internally it will rely on my SPlib, but
  * this will implement the proper SSPHP API to be called by the class that extends SimpleSAML_IdP
@@ -371,8 +374,8 @@ class sspmod_clave_IdP_eIDAS
     private static function buildResponse(
         SimpleSAML\Configuration $idpMetadata,
         SimpleSAML\Configuration $spMetadata,
-        $consumerURL
-    ) {
+        string $consumerURL
+    ): Response {
         $signResponse = $spMetadata->getBoolean('saml20.sign.response', null);
         if ($signResponse === null) {
             $signResponse = $idpMetadata->getBoolean('saml20.sign.response', true);

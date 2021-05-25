@@ -52,7 +52,7 @@ SimpleSAML\Logger::debug('Clave SP hosted metadata: ' . print_r($spMetadata, tru
 
 
 //Get remote IdP metadata
-$remoteIdPMeta = $source->getIdPMetadata('');
+$remoteIdPMeta = $source->getIdPMetadata();
 
 
 

@@ -7,6 +7,10 @@
 
 
 //STORK and eIDAS compliant SP
+use RobRichards\XMLSecLibs\XMLSecEnc;
+use RobRichards\XMLSecLibs\XMLSecurityDSig;
+use RobRichards\XMLSecLibs\XMLSecurityKey;
+
 class sspmod_clave_SPlib
 {
     public const VERSION = '2.0.3';
@@ -604,7 +608,7 @@ class sspmod_clave_SPlib
     }
 
     //Get the friendly name for a eIDAS attribute name
-    public static function getEidasFriendlyName($attributeName)
+    public static function getEidasFriendlyName($attributeName): string
     {
         if ($attributeName === null || $attributeName === '') {
             # TODO: turn again to self::fail when fal is made static (as it should be)
@@ -860,7 +864,7 @@ class sspmod_clave_SPlib
 
     //Establishes an equivalence between Stork QAA levels and eIDAS LoA
     //levels
-    public static function qaaToLoA($QAA)
+    public static function qaaToLoA($QAA): string
     {
         if ($QAA === null || $QAA === '') {
             return '';
@@ -1142,7 +1146,7 @@ class sspmod_clave_SPlib
         return $this->samlAuthReq;
     }
 
-    public function getRequestId()
+    public function getRequestId(): string
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1165,7 +1169,7 @@ class sspmod_clave_SPlib
     }
 
     // Returns the generated SAMLAuthRequest
-    public function getSamlAuthReqToken()
+    public function getSamlAuthReqToken(): string
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1178,7 +1182,7 @@ class sspmod_clave_SPlib
 
     // Builds a POST request body (for user convenience)
     // $DestCountryCode -> The C-PEPS country code.
-    public function buildPOSTBody($DestCountryCode)
+    public function buildPOSTBody($DestCountryCode): string
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1190,7 +1194,7 @@ class sspmod_clave_SPlib
     }
 
     //Bool to string
-    public static function bts($boolVar)
+    public static function bts($boolVar): string
     {
         self::trace(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1201,7 +1205,7 @@ class sspmod_clave_SPlib
     }
 
     //String to Bool
-    public static function stb($stringVar)
+    public static function stb($stringVar): bool
     {
         self::trace(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1233,7 +1237,7 @@ class sspmod_clave_SPlib
             $keyPem = str_replace("\n", '', $keyPem);
             $keyPem =
         "-----BEGIN PRIVATE KEY-----\n"
-        . chunk_split($keyPem, 64, "\n")
+        . chunk_split($keyPem, 64)
         . "-----END PRIVATE KEY-----\n";
         }
         @openssl_pkey_get_private($keyPem) or $this->fail(__FUNCTION__, self::ERR_RSA_KEY_READ);
@@ -1259,7 +1263,7 @@ class sspmod_clave_SPlib
             $certPem = str_replace("\n", '', $certPem);
             $certPem =
               "-----BEGIN CERTIFICATE-----\n"
-              . chunk_split($certPem, 64, "\n")
+              . chunk_split($certPem, 64)
               . "-----END CERTIFICATE-----\n";
             //SimpleSAML\Logger::debug("********** cert with headers?: ".$certPem);
         }
@@ -1338,7 +1342,7 @@ class sspmod_clave_SPlib
 
         $this->inResponseTo = '' . $samlResponse['InResponseTo'];
         $this->responseDestination = '' . $samlResponse['Destination'];
-        $this->responseIssuer = '' . $samlResponse->children(self::NS_SAML2, false)->Issuer;
+        $this->responseIssuer = '' . $samlResponse->children(self::NS_SAML2)->Issuer;
 
         self::trace('inResponseTo:         ' . $this->inResponseTo);
         self::trace('responseDestination:  ' . $this->responseDestination);
@@ -1400,7 +1404,7 @@ class sspmod_clave_SPlib
             }
 
             self::debug('Searching for assertions.');
-            $assertions = $samlResponse->children(self::NS_SAML2, false)->Assertion;
+            $assertions = $samlResponse->children(self::NS_SAML2)->Assertion;
 
             self::trace("Assertions SimpleXML node: \n" . print_r($assertions, true));
             if (! $assertions || count($assertions) <= 0) {
@@ -1425,23 +1429,17 @@ class sspmod_clave_SPlib
             }
 
             //Get data from the first assertion
-            if ($samlResponse->children(self::NS_SAML2, false)->Assertion[0]->Subject) {
-                $this->responseNameId = '' . $samlResponse->children(
-                    self::NS_SAML2,
-                    false
-                )->Assertion[0]->Subject->NameID;
+            if ($samlResponse->children(self::NS_SAML2)->Assertion[0]->Subject) {
+                $this->responseNameId = '' . $samlResponse->children(self::NS_SAML2)->Assertion[0]->Subject->NameID;
                 $this->responseNameIdFrm = '' . $samlResponse->children(
-                    self::NS_SAML2,
-                    false
+                    self::NS_SAML2
                 )->Assertion[0]->Subject->NameID->attributes()->Format;
             }
             $this->AuthnInstant = '' . $samlResponse->children(
-                self::NS_SAML2,
-                false
+                self::NS_SAML2
             )->Assertion[0]->AuthnStatement->attributes()->AuthnInstant;
             $this->AuthnContextClassRef = '' . $samlResponse->children(
-                self::NS_SAML2,
-                false
+                self::NS_SAML2
             )->Assertion[0]->AuthnStatement->AuthnContext->AuthnContextClassRef;
 
             self::trace('responseNameId:       ' . $this->responseNameId);
@@ -1477,7 +1475,7 @@ class sspmod_clave_SPlib
 
     //Returns whether the request was in success status.
     // $statusInfo: Status primary and secondary (if exists) codes will be returned here.
-    public function isSuccess(&$statusInfo)
+    public function isSuccess(&$statusInfo): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1600,7 +1598,7 @@ class sspmod_clave_SPlib
 
     // Returns a list containing all the attributes stated on all the
     // assertions merged, for each attribute, a list of values is provided
-    public function getAttributes()
+    public function getAttributes(): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1631,7 +1629,7 @@ class sspmod_clave_SPlib
 
     // Returns a list containing the pairing between attribute names and
     // friendly anmes, if available
-    public function getAttributeNames()
+    public function getAttributeNames(): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1652,7 +1650,7 @@ class sspmod_clave_SPlib
         return $pairings;
     }
 
-    public function getInResponseToFromReq($storkSamlResponseToken)
+    public function getInResponseToFromReq($storkSamlResponseToken): string
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1712,7 +1710,7 @@ class sspmod_clave_SPlib
         }
 
         //We get the issuer
-        $issuer = '' . $samlReq->children(self::NS_SAML2, false)->Issuer;
+        $issuer = '' . $samlReq->children(self::NS_SAML2)->Issuer;
         if ($issuer === '') {
             $issuer = '' . $samlReq['ProviderName'];
         } // Dirty workaround for Clave 2.0 java SPs not using issuers TODO: verify.
@@ -1741,7 +1739,7 @@ class sspmod_clave_SPlib
     //Returns an array with the important parameters of the received request
     // If a Request is passed on the parameter, then the return is related
     // to it and not to the request in the object state       // TODO test eIDAS support
-    public function getStorkRequestData($SAMLAuthnReqToken = null)
+    public function getStorkRequestData($SAMLAuthnReqToken = null): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1766,9 +1764,9 @@ class sspmod_clave_SPlib
             $ret['assertionConsumerService'] = '' . $samlReq['AssertionConsumerServiceURL'];
         }
 
-        $ret['issuer'] = '' . $samlReq->children(self::NS_SAML2, false)->Issuer;
+        $ret['issuer'] = '' . $samlReq->children(self::NS_SAML2)->Issuer;
 
-        $ext = $samlReq->children(self::NS_SAML2P, false)->Extensions;
+        $ext = $samlReq->children(self::NS_SAML2P)->Extensions;
 
         //Check for scoping (list of allowed remote IDPs in a proxying request)
         $ret['idplist'] = $this->parseScoping($samlReq);
@@ -1802,7 +1800,7 @@ class sspmod_clave_SPlib
                     'name' => '' . $reqAttr->attributes()->Name,
                     //'friendlyName' => "".$reqAttr->attributes()->Name,
                     //Also empty string will be evaluated to false
-                    'isRequired' => strtolower('' . $reqAttr->attributes()->isRequired) === 'true' ? true : false,
+                    'isRequired' => strtolower('' . $reqAttr->attributes()->isRequired) === 'true',
                     'values' => $values,
                 ];
             }
@@ -1811,8 +1809,8 @@ class sspmod_clave_SPlib
         if ($this->mode === 1) { //eIDAS
             self::debug('Mode 1');
 
-            $authContext = $samlReq->children(self::NS_SAML2P, false)->RequestedAuthnContext;
-            $nameIDPolicy = $samlReq->children(self::NS_SAML2P, false)->NameIDPolicy;
+            $authContext = $samlReq->children(self::NS_SAML2P)->RequestedAuthnContext;
+            $nameIDPolicy = $samlReq->children(self::NS_SAML2P)->NameIDPolicy;
             $reqAttrs = $ext->children(self::NS_EIDAS, false)->RequestedAttributes->children(self::NS_EIDAS, false);
 
             $ret['spSector'] = '';
@@ -1845,17 +1843,14 @@ class sspmod_clave_SPlib
                     'friendlyName' => '' . $reqAttr->attributes()->FriendlyName,
                     'name' => '' . $reqAttr->attributes()->Name,
                     //Also empty string will be evaluated to false
-                    'isRequired' => strtolower('' . $reqAttr->attributes()->isRequired) === 'true' ? true : false,
+                    'isRequired' => strtolower('' . $reqAttr->attributes()->isRequired) === 'true',
                     'values' => $values,
                 ];
             }
         }
 
         //Include the embedded certificate in the returned data
-        $ret['spCert'] = '' . $samlReq->children(
-            self::NS_XMLDSIG,
-            false
-        )->Signature->KeyInfo->X509Data->X509Certificate;
+        $ret['spCert'] = '' . $samlReq->children(self::NS_XMLDSIG)->Signature->KeyInfo->X509Data->X509Certificate;
 
         return $ret;
     }
@@ -1863,7 +1858,7 @@ class sspmod_clave_SPlib
     /*******************  SAML RESPONSE GENERATION  *********************/
 
     //Returns an array with the assertions from the response in the shape of xml strings
-    public function getRawAssertions()
+    public function getRawAssertions(): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -1875,7 +1870,7 @@ class sspmod_clave_SPlib
             $samlResponse = $this->parseXML($this->SAMLResponseToken);
         }
 
-        $assertions = $samlResponse->children(self::NS_SAML2, false)->Assertion;
+        $assertions = $samlResponse->children(self::NS_SAML2)->Assertion;
 
         if (! $assertions || count($assertions) <= 0) {
             $this->fail(__FUNCTION__, self::ERR_RESP_SUCC_NO_ASSERTIONS);
@@ -1892,7 +1887,7 @@ class sspmod_clave_SPlib
     {
         $samlResponse = $this->parseXML($this->SAMLResponseToken);
 
-        $status = $samlResponse->children(self::NS_SAML2, false)->Status;
+        $status = $samlResponse->children(self::NS_SAML2)->Status;
 
         if (! $status || count($status) <= 0) {
             $this->fail(__FUNCTION__, self::ERR_SAMLRESP_NOSTATUS);
@@ -1901,7 +1896,7 @@ class sspmod_clave_SPlib
         return $status;
     }
 
-    public static function generateID()
+    public static function generateID(): string
     {
         //randomly generated 128 bits request ID
         return '_' . md5(uniqid(mt_rand(), true));
@@ -1942,7 +1937,7 @@ class sspmod_clave_SPlib
         $this->responseIssuer = $issuer;
     }
 
-    public function generateStatus($status, $isRaw = false)
+    public function generateStatus($status, $isRaw = false): string
     {
 
       //If raw, it is a string, return and we're done.
@@ -2014,7 +2009,7 @@ class sspmod_clave_SPlib
                 $rootObj = $this->parseXML($xml);
 
                 //Add AttributeStatus to each assertion attribute
-                $assertionObj = $rootObj->children(self::NS_SAML2, false)->Assertion;
+                $assertionObj = $rootObj->children(self::NS_SAML2)->Assertion;
                 foreach ($assertionObj->AttributeStatement->Attribute as $attribute) {
                     $attribute->addAttribute('stork:AttributeStatus', 'Available', self::NS_STORK);
                 }
@@ -2287,7 +2282,7 @@ class sspmod_clave_SPlib
 
     // Gets the issuer entityId from a Saml token
     // $samlToken: string xml saml token string
-    public function getIssuer($samlToken)
+    public function getIssuer($samlToken): string
     {
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Empty saml token.');
@@ -2297,12 +2292,12 @@ class sspmod_clave_SPlib
         $samlTok = $this->parseXML($samlToken);
 
         //We get the issuer
-        return '' . $samlTok->children(self::NS_SAML2, false)->Issuer;
+        return '' . $samlTok->children(self::NS_SAML2)->Issuer;
     }
 
     // Gets the providerName from a Saml token
     // $samlToken: string xml saml token string
-    public function getProviderName($samlToken)
+    public function getProviderName($samlToken): string
     {
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Empty saml token.');
@@ -2399,7 +2394,7 @@ class sspmod_clave_SPlib
         return $sloReq;
     }
 
-    public function validateSLOResponse($samlToken)
+    public function validateSLOResponse($samlToken): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -2425,8 +2420,8 @@ class sspmod_clave_SPlib
 
         $this->inResponseTo = '' . $samlResponse['InResponseTo'];
         $this->responseDestination = '' . $samlResponse['Destination'];
-        $this->responseIssuer = '' . $samlResponse->children(self::NS_SAML2, false)->Issuer;
-        $this->responseNameId = '' . $samlResponse->children(self::NS_SAML2, false)->Assertion[0]->Subject->NameID;
+        $this->responseIssuer = '' . $samlResponse->children(self::NS_SAML2)->Issuer;
+        $this->responseNameId = '' . $samlResponse->children(self::NS_SAML2)->Assertion[0]->Subject->NameID;
 
         self::trace('inResponseTo:        ' . $this->inResponseTo);
         self::trace('responseDestination: ' . $this->responseDestination);
@@ -2529,7 +2524,7 @@ class sspmod_clave_SPlib
     }
 
     //Returns an array with the important parameters of the received SLO request
-    public function getSloRequestData()
+    public function getSloRequestData(): array
     {
         $ret = [];
 
@@ -2537,8 +2532,8 @@ class sspmod_clave_SPlib
 
         $ret['id'] = '' . $samlReq['ID'];
         $ret['destination'] = '' . $samlReq['Destination'];
-        $ret['issuer'] = '' . $samlReq->children(self::NS_SAML2, false)->Issuer;
-        $ret['nameId'] = '' . $samlReq->children(self::NS_SAML2, false)->NameID;
+        $ret['issuer'] = '' . $samlReq->children(self::NS_SAML2)->Issuer;
+        $ret['nameId'] = '' . $samlReq->children(self::NS_SAML2)->NameID;
 
         return $ret;
     }
@@ -2581,7 +2576,7 @@ class sspmod_clave_SPlib
     }
 
     //Gets the nameID content from a SLO request.
-    public function getSloNameId($samlToken)
+    public function getSloNameId($samlToken): string
     {
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Empty saml token.');
@@ -2591,7 +2586,7 @@ class sspmod_clave_SPlib
         $samlTok = $this->parseXML($samlToken);
 
         //We get the issuer
-        return '' . $samlTok->children(self::NS_SAML2, false)->NameID;
+        return '' . $samlTok->children(self::NS_SAML2)->NameID;
     }
 
     // Set whether to, the key strength and certificate to cipher the
@@ -2992,7 +2987,7 @@ class sspmod_clave_SPlib
 
     //Parse and extract information from the assertion subject
     // $subject:  SimpleXML object representing the Subject  // TODO see if namequalifier being absent is a problem
-    private function parseAssertionSubject($subject)
+    private function parseAssertionSubject($subject): ?array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3068,7 +3063,7 @@ class sspmod_clave_SPlib
                 $assertionInfo['Conditions'] = [
                     'NotBefore' => '' . $assertion->Conditions->attributes()->NotBefore,
                     'NotOnOrAfter' => '' . $assertion->Conditions->attributes()->NotOnOrAfter,
-                    'OneTimeUse' => '' . ($assertion->Conditions->OneTimeUse ? true : false),
+                    'OneTimeUse' => '' . (bool) $assertion->Conditions->OneTimeUse,
                     'Audience' => [],
                 ];
                 foreach ($assertion->Conditions->AudienceRestriction->Audience as $audience) {
@@ -3116,7 +3111,7 @@ class sspmod_clave_SPlib
     // $returnValueMeta: eIDAS has some xml attributes indicating the type/language, etc. of each value. If true, values will be arrays and not strings, containing the value and its metadata
     //Will return an array with the assertion data. 0n eIDAS, attribute
     //values have one more level of depth: access as ['value']['value]
-    private function parseAssertionAttributes($attributeStatement, $returnValueMeta = false)
+    private function parseAssertionAttributes($attributeStatement, $returnValueMeta = false): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3230,7 +3225,7 @@ class sspmod_clave_SPlib
 
     //Verifies the enveloped signature on an XML document, with the embedded
     //certificate or optionally an externally provided certificate.
-    private function verifySignature($data, $externalKey = '')
+    private function verifySignature($data, $externalKey = ''): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3354,7 +3349,7 @@ class sspmod_clave_SPlib
     }
 
     //Validate SamlResponseToken against all trusted issuer certificates.
-    private function validateXMLDSignature($xml)
+    private function validateXMLDSignature($xml): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3398,7 +3393,7 @@ class sspmod_clave_SPlib
         return true;
     }
 
-    private function parseXML($xmlStr)
+    private function parseXML($xmlStr): SimpleXMLElement
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3419,7 +3414,7 @@ class sspmod_clave_SPlib
         return $xmlObj;
     }
 
-    private function parseScoping($samlReq)
+    private function parseScoping($samlReq): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3700,7 +3695,7 @@ class sspmod_clave_SPlib
     //Receives a saml response token and returns a simpleXML object of
     //the response but replacing any encryptedAssertion by its decrypted
     //counterpart.
-    private function decryptAssertions($samlToken)
+    private function decryptAssertions($samlToken): SimpleXMLElement
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
@@ -3807,7 +3802,7 @@ class sspmod_clave_SPlib
             }
 
             #Check if the decrypted content is a valid DOM Node
-            if (! ($decryptedElement instanceof \DOMElement)) {
+            if (! ($decryptedElement instanceof DOMElement)) {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Decrypted element is not a DOMElement.');
             }
 
@@ -3944,14 +3939,14 @@ class claveAuth
         );
 
         foreach ($this->conf['attributesToRequest'] as $attr) {
-            $this->claveSP->addRequestAttribute($attr, false);
+            $this->claveSP->addRequestAttribute($attr);
         }
 
         $this->attributes = [];
     }
 
     //Returns true if authn succeeded, false if failed, redirects if new authn
-    public function authenticate()
+    public function authenticate(): bool
     {
         self::debug('**Entra en authenticate');
 
@@ -3965,7 +3960,7 @@ class claveAuth
     }
 
     //Transformamos los attrs para compatibilizarlos con el PoA
-    public function getAttributes()
+    public function getAttributes(): array
     {
         self::debug('**attrs::' . print_r($this->attributes, true));
 
@@ -3985,7 +3980,7 @@ class claveAuth
     }
 
     //Returns true if logout succeeded, false if failed, redirects if new logout
-    public function logout()
+    public function logout(): bool
     {
 
         //If no response token on the request, then we must launch an authn process
@@ -4069,7 +4064,7 @@ class claveAuth
         $this->redirectLogout($req, $this->conf['sloEndpoint']);
     }
 
-    private function handleLogoutResponse($response)
+    private function handleLogoutResponse($response): bool
     {
         $resp = base64_decode($response, true);
 
@@ -4091,7 +4086,7 @@ class claveAuth
         return false;
     }
 
-    private function handleResponse($response)
+    private function handleResponse($response): bool
     {
         $resp = base64_decode($response, true);
 
@@ -4103,7 +4098,7 @@ class claveAuth
 
         $claveSP->setValidationContext($_SESSION['claveLib']['requestId'], $_SESSION['claveLib']['returnPage']);
 
-        $claveSP->setDecipherParams($this->conf['signKey'], true, false);
+        $claveSP->setDecipherParams($this->conf['signKey']);
 
         $claveSP->validateStorkResponse($resp);
 
@@ -4208,7 +4203,7 @@ class claveAuth
         exit(0);
     }
 
-    private static function getConfigFromFile($file)
+    private static function getConfigFromFile($file): array
     {
         try {
             //Don't use _once or the global variable might get unset.
@@ -4228,19 +4223,19 @@ class claveAuth
         return $clave_config;
     }
 
-    private static function url_origin($s, $use_forwarded_host = false)
+    private static function url_origin($s, $use_forwarded_host = false): string
     {
         $ssl = (! empty($s['HTTPS']) && $s['HTTPS'] === 'on');
         $sp = strtolower($s['SERVER_PROTOCOL']);
         $protocol = substr($sp, 0, strpos($sp, '/')) . (($ssl) ? 's' : '');
         $port = $s['SERVER_PORT'];
         $port = ((! $ssl && $port === '80') || ($ssl && $port === '443')) ? '' : ':' . $port;
-        $host = ($use_forwarded_host && isset($s['HTTP_X_FORWARDED_HOST'])) ? $s['HTTP_X_FORWARDED_HOST'] : (isset($s['HTTP_HOST']) ? $s['HTTP_HOST'] : null);
-        $host = isset($host) ? $host : $s['SERVER_NAME'] . $port;
+        $host = ($use_forwarded_host && isset($s['HTTP_X_FORWARDED_HOST'])) ? $s['HTTP_X_FORWARDED_HOST'] : ($s['HTTP_HOST'] ?? null);
+        $host = $host ?? $s['SERVER_NAME'] . $port;
         return $protocol . '://' . $host;
     }
 
-    private static function full_url($s, $use_forwarded_host = false)
+    private static function full_url($s, $use_forwarded_host = false): string
     {
         return self::url_origin($s, $use_forwarded_host) . $s['REQUEST_URI'];
     }

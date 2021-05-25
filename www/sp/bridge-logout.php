@@ -99,7 +99,7 @@ if ($certData !== null) {
 }
 
 
-$claveSP->setValidationContext($id, $state['bridge:slo:returnPage'], $expectedIssuers, null);
+$claveSP->setValidationContext($id, $state['bridge:slo:returnPage'], $expectedIssuers);
 
 
 if (! $claveSP->validateSLOResponse($resp)) {

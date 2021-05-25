@@ -17,7 +17,7 @@ $sp_metadata = preg_replace('!(\r\n|\r|\n)\h*//[^\r\n]*(\r\n|\r|\n)!', '$1', $sp
 
 
 //We now filter the entity IDs for the SPs
-preg_match_all('/\$metadata\[["\']([^"\']*)["\']\]/', $sp_metadata, $matches);
+preg_match_all('/\$metadata\[["\']([^"\']*)["\']]/', $sp_metadata, $matches);
 //We get the number of inner matches, not the full matches
 $SP_entityIDs = $matches[1];
 

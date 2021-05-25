@@ -83,7 +83,7 @@ if ($certData !== null) {
 
 
 
-$clave->setValidationContext($id, $state['clave:sp:slo:returnPage'], $expectedIssuers, null);
+$clave->setValidationContext($id, $state['clave:sp:slo:returnPage'], $expectedIssuers);
 
 //If logout failed, we warn, but keep on with the response (as the
 //status is transmitted back to the SP)

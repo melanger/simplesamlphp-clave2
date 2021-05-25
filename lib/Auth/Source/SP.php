@@ -1,5 +1,8 @@
 <?php
 
+use SimpleSAML\Configuration;
+use SimpleSAML\Utils\HTTP;
+
 /**
  * @method static handleUnsolicitedAuth($sourceId, $state, $redirectTo)
  */
@@ -125,12 +128,12 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
 
         //Check if all mandatory config is available (in any of the sets) // TODO review this, as there might be collisions, and review the list of mandatory
         foreach (self::$mandatoryConfigParams as $mandParam) {
-            $value = $this->metadata->getValue($mandParam, null);
+            $value = $this->metadata->getValue($mandParam);
             if ($value === null) {
-                $value = $this->spMetadata->getValue($mandParam, null);
+                $value = $this->spMetadata->getValue($mandParam);
             }
             if ($value === null) {
-                $value = $this->idpMetadata->getValue($mandParam, null);
+                $value = $this->idpMetadata->getValue($mandParam);
             }
             if ($value === null) {
                 throw new SimpleSAML\Error\Exception("${mandParam} field not defined for eIDAS auth source.");
@@ -161,7 +164,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      * @return string  The metadata URL.
      * @throws Exception
      */
-    public function getMetadataURL()
+    public function getMetadataURL(): string
     {
         $spConfId = $this->metadata->getString('hostedSP', null);
         return SimpleSAML\Module::getModuleURL(
@@ -174,7 +177,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      *
      * @return string  The entity id of this SP.
      */
-    public function getEntityId()
+    public function getEntityId(): string
     {
         return $this->entityId;
     }
@@ -184,7 +187,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      *
      * @return SimpleSAML\Configuration  The metadata of this SP.
      */
-    public function getMetadata()
+    public function getMetadata(): Configuration
     {
         return $this->metadata;
     }
@@ -195,7 +198,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      * @param string $entityId  The entity id of the IdP.
      * @return SimpleSAML\Configuration  The metadata of the IdP.
      */
-    public function getIdPMetadata($entityId = '')
+    public function getIdPMetadata(string $entityId = ''): Configuration
     {
         assert('is_string($entityId)');
 
@@ -260,7 +263,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      * @param array $state The state array for the current authentication.
      * @throws Exception
      */
-    public function startSSO($idp, array $state)
+    public function startSSO(string $idp, array $state)
     {
         assert('is_string($idp)');
 
@@ -657,7 +660,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      * @throws SimpleSAML\Error\UnserializableException
      * @throws Exception
      */
-    public function handleResponse(array $state, $idp, array $attributes)
+    public function handleResponse(array $state, string $idp, array $attributes)
     {
         assert('is_string($idp)');
 
@@ -724,7 +727,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
 
         $state['Attributes'] = $authProcState['Attributes'];
 
-        if (isset($state['saml:sp:isUnsolicited']) && (bool) $state['saml:sp:isUnsolicited']) {
+        if (isset($state['saml:sp:isUnsolicited']) && $state['saml:sp:isUnsolicited']) {
             if (! empty($state['saml:sp:RelayState'])) {
                 $redirectTo = $state['saml:sp:RelayState'];
             } else {
@@ -742,14 +745,15 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
     /**
      * Start logout operation.
      *
-     * @param array $state  The logout state.
+     * @param array $state The logout state.
+     * @throws Exception
+     * @throws Exception
      */
     public function logout(&$state)
     {
         assert('is_array($state)');
 
         $this->startSLO2($state);
-        return;
     }
 
     /**
@@ -758,7 +762,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      * @param array $state The logout state.
      * @throws Exception
      */
-    public function startSLO2(&$state)
+    public function startSLO2(array &$state)
     {
         assert('is_array($state)');
 
@@ -827,10 +831,9 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
      * Start a discovery service operation, (country selector in eIDAS).
      *
      * @param array $state The state array.
-     * @return bool
      * @throws Exception
      */
-    private function startDisco(array $state)
+    private function startDisco(array $state): bool
     {
         SimpleSAML\Logger::debug('Called sspmod_clave_Auth_Source_SP startDisco');
 
@@ -874,7 +877,7 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
             //'returnIDParam' => 'country'       //The param name where the country ID will be searched
         ];
 
-        \SimpleSAML\Utils\HTTP::redirectTrustedURL($discoURL, $params);
+        HTTP::redirectTrustedURL($discoURL, $params);
     }
 
     /**
