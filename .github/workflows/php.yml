@@ -17,6 +17,7 @@ jobs:
         with:
           php_version: 7.4
           version: 2
+          php_extensions: calendar json
       - name: Run easy coding standard
         run: vendor/bin/ecs check
   release:
