@@ -19,8 +19,10 @@ return static function (ContainerConfigurator $containerConfigurator): void {
     $parameters->set(Option::PATHS, [
         __DIR__ . '/ecs.php',
         __DIR__ . '/config-templates',
+        __DIR__ . '/metadata-templates',
         __DIR__ . '/lib',
         __DIR__ . '/www',
+        __DIR__ . '/composer.json',
     ]);
 
     $containerConfigurator->import(SetList::CLEAN_CODE);

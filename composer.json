@@ -24,7 +24,7 @@
         "ext-calendar": "*",
         "ext-json": "*",
         "ext-openssl": "*",
-      "ext-dom": "*",
+        "ext-dom": "*",
         "ext-simplexml": "*"
     },
     "require-dev": {
