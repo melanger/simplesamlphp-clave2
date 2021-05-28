@@ -189,7 +189,6 @@ $expectEncrypted = $spMetadata->getBoolean('assertions.encrypted', true);
 $onlyEncrypted = $spMetadata->getBoolean('assertions.encrypted.only', false);
 
 $eidas->setDecipherParams($spkeypem, $expectEncrypted, $onlyEncrypted);
-//SimpleSAML\Logger::debug("Private Key loaded from hosted SP metadata: ".$spkeypem);
 
 
 

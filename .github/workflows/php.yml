@@ -22,6 +22,8 @@ jobs:
         run: vendor/bin/ecs check
   release:
     name: Release
+    needs: [build]
+    if: success()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

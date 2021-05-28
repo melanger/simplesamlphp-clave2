@@ -99,7 +99,6 @@ class sspmod_clave_Auth_Source_SP extends SimpleSAML\Auth\Source
         parent::__construct($info, $config);
 
         SimpleSAML\Logger::debug('Called sspmod_clave_Auth_Source_SP constructor');
-        //SimpleSAML\Logger::debug('info: '.print_r($info, true));
         SimpleSAML\Logger::debug('config: ' . print_r($config, true));
 
         //Load the metadata of the authsource (from the authsources file)
