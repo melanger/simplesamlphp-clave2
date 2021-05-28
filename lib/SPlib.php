@@ -1253,7 +1253,6 @@ class sspmod_clave_SPlib
         }
 
         $certPem = $cert;
-        //    SimpleSAML\Logger::debug("********** cert  at the beginning: ".$certPem);
         // We check it is a valid X509 certificate
 
         if (! @openssl_x509_read($certPem)) {
