@@ -22,7 +22,13 @@
         "simplesamlphp/simplesamlphp": "^1.18.4",
         "robrichards/xmlseclibs": "^3.0.4",
         "ext-calendar": "*",
-        "ext-json": "*"
+        "ext-json": "*",
+        "ext-openssl": "*",
+        "ext-dom": "*",
+        "ext-simplexml": "*"
+    },
+    "require-dev": {
+        "symplify/easy-coding-standard": "^9.2"
     },
     "support": {
         "issues": "https://github.com/rediris-es/simplesamlphp-clave2/issues",

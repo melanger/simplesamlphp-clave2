@@ -2,18 +2,17 @@
 
 /**
  * Return page of the eIDAS country selector. Will go on with the authentication process
- *
  */
 
 
 //GET parameter set at the AuthSource startDisco call
-if (!array_key_exists('AuthID', $_REQUEST)) {
-	throw new SimpleSAML\Error\BadRequest('Missing AuthID to country selector response handler');
+if (! array_key_exists('AuthID', $_REQUEST)) {
+    throw new SimpleSAML\Error\BadRequest('Missing AuthID to country selector response handler');
 }
 
 //The parameter we obtained at the country selector
-if (!array_key_exists('country', $_REQUEST)) {
-	throw new SimpleSAML\Error\BadRequest('Missing country to country selector response handler');
+if (! array_key_exists('country', $_REQUEST)) {
+    throw new SimpleSAML\Error\BadRequest('Missing country to country selector response handler');
 }
 
 
@@ -32,11 +31,11 @@ $idpEntityId = $state['clave:sp:idpEntityID'];
 
 //Instantiate the AuthSource
 $source = SimpleSAML\Auth\Source::getById($sourceId);
-if ($source === NULL) {
-	throw new Exception('Could not find authentication source with id ' . $sourceId);
+if ($source === null) {
+    throw new Exception('Could not find authentication source with id ' . $sourceId);
 }
-if (!($source instanceof sspmod_clave_Auth_Source_SP)) {
-	throw new SimpleSAML\Error\Exception("Source -$sourceId- type (sspmod_clave_Auth_Source_SP) changed?");
+if (! ($source instanceof sspmod_clave_Auth_Source_SP)) {
+    throw new SimpleSAML\Error\Exception("Source -${sourceId}- type (sspmod_clave_Auth_Source_SP) changed?");
 }
 
 
@@ -60,4 +59,3 @@ $idp = $idpEntityId;
 //Return to the AuthSource and call the function that performs the request
 $source->startSSO($idp, $state);
 assert('FALSE');
-
