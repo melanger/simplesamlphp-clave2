@@ -1,15 +1,12 @@
 <?php
 
 /**
- * Metadata service for eIDAS SP
+ * Metadata service for eIDAS SP Expects, at the end of the URL, a string: [acs-ID]/[clave-sp-hosted-ID]/[authsource-ID]
+ * ...sp/metadata.php/bridge/hostedSpID/authSource
  */
 
-// Expects, at the end of the URL, a string: [acs-ID]/[clave-sp-hosted-ID]/[authsource-ID]
 
-
-//Read the hosted-sp ID, to know which metadata to generate
-// ...sp/metadata.php/bridge/hostedSpID/authSource
-$pathInfoStr = str_replace('.', '', substr($_SERVER['PATH_INFO'], 1)); // dots not allowed in this path
+$pathInfoStr = str_replace('.', '', substr($_SERVER['PATH_INFO'], 1));
 $pathInfo = explode('/', $pathInfoStr);
 
 $acsID = '';
@@ -29,39 +26,33 @@ if ($acsID === null || $acsID === '') {
     throw new SimpleSAML\Error\Exception('No eIDAS ACS ID provided on the url path info.');
 }
 
-//Read the hosted sp metadata
 if ($hostedSpId === null || $hostedSpId === '') {
     throw new SimpleSAML\Error\Exception('No eIDAS hosted SP ID provided on the url path info.');
 }
-$hostedSPmeta = sspmod_clave_Tools::getMetadataSet($hostedSpId, 'clave-sp-hosted');
+$hostedSPmeta = SimpleSAML\Module\clave\Tools::getMetadataSet($hostedSpId, 'clave-sp-hosted');
 SimpleSAML\Logger::debug('Clave SP hosted metadata: ' . print_r($hostedSPmeta, true));
 
 
-
-//Obtain the full URL of this same page
 $metadataUrl = SimpleSAML\Module::getModuleURL('clave/sp/metadata.php/' . $pathInfoStr);
 
-//Get the ACS url
 $returnPage = SimpleSAML\Module::getModuleURL('clave/sp/' . $acsID . '-acs.php/' . $authSource);
 
-//Get the signing certificate and key
-$spcertpem = sspmod_clave_Tools::readCertKeyFile($hostedSPmeta->getString('certificate', null));
-$spkeypem = sspmod_clave_Tools::readCertKeyFile($hostedSPmeta->getString('privatekey', null));
+$spcertpem = SimpleSAML\Module\clave\Tools::readCertKeyFile($hostedSPmeta->getString('certificate', null));
+$spkeypem = SimpleSAML\Module\clave\Tools::readCertKeyFile($hostedSPmeta->getString('privatekey', null));
 
 
 
 
-$eidas = new sspmod_clave_SPlib();
+$eidas = new SimpleSAML\Module\clave\SPlib();
 
 $eidas->setEidasMode();
 
 
-$eidas->setSignatureKeyParams($spcertpem, $spkeypem, sspmod_clave_SPlib::RSA_SHA512);
-$eidas->setSignatureParams(sspmod_clave_SPlib::SHA512, sspmod_clave_SPlib::EXC_C14N);
+$eidas->setSignatureKeyParams($spcertpem, $spkeypem, SimpleSAML\Module\clave\SPlib::RSA_SHA512);
+$eidas->setSignatureParams(SimpleSAML\Module\clave\SPlib::SHA512, SimpleSAML\Module\clave\SPlib::EXC_C14N);
 
 $eidas->setServiceProviderParams('', $metadataUrl, $returnPage);
 
 
-//Print the generated metadata
 header('Content-type: application/xml');
 echo $eidas->generateSPMetadata();

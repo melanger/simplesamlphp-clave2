@@ -1,6 +1,17 @@
 <?php
 
+namespace SimpleSAML\Module\clave;
+
+use SAML2\Binding;
 use SAML2\Response;
+use SimpleSAML\Configuration;
+use SimpleSAML\Error\Exception;
+use SimpleSAML\Logger;
+use SimpleSAML\Module;
+use SimpleSAML\Module\saml\Error;
+use SimpleSAML\Module\saml\Message;
+use SimpleSAML\Stats;
+use SimpleSAML\Utils\HTTP;
 
 /**
  * The specific parts of the IdP for SAML 2.0 eIDAS Protocol and deployment. Internally it will rely on my SPlib, but
@@ -13,38 +24,43 @@ use SAML2\Response;
 
 // TODO: when everything is working, rename the SPlib and all its internal and external references to eIDASlib
 
-class sspmod_clave_IdP_eIDAS
+class IdP_eIDAS
 {
     /**
      * Send a response to the SP.
      *
      * @param array $state The authentication state.
-     * @throws \SimpleSAML\Error\Exception
      * @throws Exception
      */
     public static function sendResponse(array $state)
     {
-        assert('isset($state["Attributes"])');
-        assert('isset($state["SPMetadata"])');
-        assert('isset($state["saml:ConsumerURL"])');
-        assert('array_key_exists("saml:RequestId", $state)'); // Can be NULL
-        assert('array_key_exists("saml:RelayState", $state)'); // Can be NULL.
+        if (! isset($state['Attributes'])) {
+            Logger::error('Missing $state["Attributes"]');
+        }
+        if (! isset($state['SPMetadata'])) {
+            Logger::error('Missing $state["SPMetadata"]');
+        }
+        if (! isset($state['saml:ConsumerURL'])) {
+            Logger::error('Missing $state["saml:ConsumerURL"]');
+        }
+        if (! array_key_exists('saml:RequestId', $state)) {
+            Logger::error('saml:RequestId key missing in $state array');
+        }
+        if (! array_key_exists('saml:RelayState', $state)) {
+            Logger::error('saml:RelayState key missing in $state array');
+        }
 
-        //Get the remote SP metadata
-        $spMetadata = SimpleSAML\Configuration::loadFromArray($state['SPMetadata']);
+        $spMetadata = Configuration::loadFromArray($state['SPMetadata']);
         $spEntityId = $spMetadata->getString('entityid', null);
-        SimpleSAML\Logger::debug('eIDAS SP remote metadata (' . $spEntityId . '): ' . print_r($spMetadata, true));
+        Logger::debug('eIDAS SP remote metadata (' . $spEntityId . '): ' . print_r($spMetadata, true));
 
-        SimpleSAML\Logger::info('Sending eIDAS Response to ' . var_export($spEntityId, true));
+        Logger::debug('Sending eIDAS Response to ' . var_export($spEntityId, true));
 
-        $requestId = $state['saml:RequestId'];
         $relayState = $state['saml:RelayState'];
-        SimpleSAML\Logger::debug('------------------Relay State on sendResponse: ' . $state['saml:RelayState']);
-        $consumerURL = $state['saml:ConsumerURL'];
+        Logger::debug('------------------Relay State on sendResponse: ' . $state['saml:RelayState']);
 
-        $idp = sspmod_clave_IdP::getByState($state);
+        $idp = IdP::getByState($state);
 
-        //Get the hosted IdP metadata
         $idpMetadata = $idp->getConfig();
 
         //We clone the assertions on the response, as they are signed // TODO: decission needs to be taken later. move to a specific variable.
@@ -54,47 +70,40 @@ class sspmod_clave_IdP_eIDAS
             $rawassertions = $state['eidas:raw:assertions'];
         }
 
-        //Special structure to build the assertions from scratch if a multi-assertion response is required. No standard AuthFilters may apply here
         $structassertions = null;
         if (isset($state['eidas:struct:assertions'])) {
             $structassertions = $state['eidas:struct:assertions'];
         }
 
-        //The standard ssp attributes. These may have gone through any standard AuthFilter modification
         $singleassertion = null;
         if (isset($state['Attributes'])) {
             $singleassertion = $state['Attributes'];
         }
 
-        //Original request Data
         $reqData = $state['eidas:requestData'];
 
-        //Signing certificate and key
         $hiCertPath = $idpMetadata->getString('certificate', null);
         $hiKeyPath = $idpMetadata->getString('privatekey', null);
         if ($hiCertPath === null || $hiKeyPath === null) {
-            throw new SimpleSAML\Error\Exception(
+            throw new Exception(
                 "'certificate' and/or 'privatekey' parameters not defined in eIDAS hosted IdP Metadata."
             );
         }
 
-        $hikeypem = sspmod_clave_Tools::readCertKeyFile($hiKeyPath);
-        $hicertpem = sspmod_clave_Tools::readCertKeyFile($hiCertPath);
+        $hikeypem = Tools::readCertKeyFile($hiKeyPath);
+        $hicertpem = Tools::readCertKeyFile($hiCertPath);
 
-        //Mode for the IdP (remote SP specific or hosted IdP default)
         $IdPdialect = $spMetadata->getString('dialect', $idpMetadata->getString('dialect'));
-        $IdPsubdialect = $spMetadata->getString('subdialect', $idpMetadata->getString('subdialect'));
 
-        //Get response encryption config (remote SP configuration prioritary over hosted IdP config)
         $encryptAssertions = $spMetadata->getBoolean(
             'assertion.encryption',
             $idpMetadata->getBoolean('assertion.encryption', false)
         );
-        SimpleSAML\Logger::debug('Encrypt assertions: ' . $encryptAssertions);
+        Logger::debug('Encrypt assertions: ' . $encryptAssertions);
 
         $encryptAlgorithm = $spMetadata->getString(
             'assertion.encryption.keyAlgorithm',
-            $idpMetadata->getString('assertion.encryption.keyAlgorithm', sspmod_clave_SPlib::AES256_CBC)
+            $idpMetadata->getString('assertion.encryption.keyAlgorithm', SPlib::AES256_CBC)
         );
         $storkize = $spMetadata->getBoolean(
             'assertion.storkize',
@@ -102,12 +111,7 @@ class sspmod_clave_IdP_eIDAS
         );
 
         //Hybrid STORK-eIDAS-own brew behaviour to get the ACS  // TODO: should we keep it like this? or maybe turn it around? (if fixed, use it, otherwise, use request value)?
-        //if ($SPdialect === 'stork')
-        //    $acs  = $reqData['assertionConsumerService'];
-        //if ($SPdialect === 'eidas')
-        //    $acs = $spMetadata->getArray('AssertionConsumerService',array(['Location' => ""]))[0]['Location'];
 
-        //Try to get the ACS from the request
         $acs = '';
         if (array_key_exists('assertionConsumerService', $reqData)) {
             $acs = $reqData['assertionConsumerService'];
@@ -120,30 +124,27 @@ class sspmod_clave_IdP_eIDAS
         }
 
         if ($acs === null || $acs === '') {
-            throw new SimpleSAML\Error\Exception(
+            throw new Exception(
                 "Assertion Consumer Service URL not found on the request nor metadata for the entity: ${spEntityId}."
             );
         }
 
-        //Obtain the full URL of the IdP Metadata page
-        $metadataUrl = SimpleSAML\Module::getModuleURL('clave/idp/metadata.php');
+        $metadataUrl = Module::getModuleURL('clave/idp/metadata.php');
 
-        //Set the list of POST params to forward from the remote IDP response, if any
         $forwardedParams = [];
         if (isset($state['idp:postParams'])) {
             $forwardedParams = $state['idp:postParams'];
         }
 
-        //Build response
-        $storkResp = new sspmod_clave_SPlib();
+        $storkResp = new SPlib();
 
         if ($IdPdialect === 'eidas') {
             $storkResp->setEidasMode();
         }
 
-        $storkResp->setSignatureKeyParams($hicertpem, $hikeypem, sspmod_clave_SPlib::RSA_SHA256);
+        $storkResp->setSignatureKeyParams($hicertpem, $hikeypem, SPlib::RSA_SHA256);
 
-        $storkResp->setSignatureParams(sspmod_clave_SPlib::SHA256, sspmod_clave_SPlib::EXC_C14N);
+        $storkResp->setSignatureParams(SPlib::SHA256, SPlib::EXC_C14N);
 
         if ($encryptAssertions === true) {
             $storkResp->setCipherParams($reqData['spCert'], $encryptAssertions, $encryptAlgorithm);
@@ -156,97 +157,20 @@ class sspmod_clave_IdP_eIDAS
             $idpMetadata->getString('issuer', $metadataUrl)
         );
 
-        //Build the assertions, based on the existing variables
-        //(generate the xml and pass it as it were raw):
-        // * if struct, we prefer struct, but if only one assertion, use standard, if >1 use struct
-        // * if no struct but raw, use raw
-        // * if no struct nor raw, use standard
-        $assertions = [];
-
         if ($structassertions !== null) {
-            foreach ($structassertions as $assertionData) {
-
-                // TODO: This block is legacy. Should be implemented on the esmo
-                //   module authsource acs and removed from here. It is already
-                //   implemented on this acs
-                //Set the NameID of the response
-                if (isset($state['saml:sp:NameID'])) {
-                    $assertionData['NameID'] = $state['saml:sp:NameID'];
-                } else {
-                    //Set the NameID from the eIDAS ID attribute
-                    //$idAttrName = 'eIdentifier';  // TODO: is this mandatory in STORK? fro the moment, leave it out // TODO: maybe define a param to mark the ID attr line in AdAS?
-                    $idAttrName = 'PersonIdentifier';
-                    foreach ($assertionData['attributes'] as $attr) {
-                        if ($attr['friendlyName'] === $idAttrName
-                        || $attr['name'] === $idAttrName) {
-                            $assertionData['NameID'] = $attr['values'][0];
-                            break;
-                        }
-                    }
-                }
-
-                if (! isset($assertionData['NameIDFormat'])) {
-                    $assertionData['NameIDFormat'] = sspmod_clave_SPlib::NAMEID_FORMAT_PERSISTENT;
-                }
-
-                //TODO: If we want to add conditions, these must be set here by the IdP
-                //$assertionData['Address'];
-                //$assertionData['Recipient'];
-                //$assertionData['Audience'];
-
-                $assertions[] = $storkResp->generateAssertion($assertionData);
-            }
+            $assertions = self::buildStructAssertions($structassertions, $storkResp, $state);
         } elseif ($rawassertions !== null) {
             $assertions = $rawassertions;
-        } else { //This was called from a standard AuthSource and only has the standard attribute list
-
-            //Build transfer object from the standard attribute list
-            $assertionData = [];
-            $assertionData['Issuer'] = $idpMetadata->getString('issuer', $metadataUrl);
-
-            $assertionData['attributes'] = [];
-            foreach ($singleassertion as $attributename => $values) {
-
-                //In some cases, I might have stored the full names here:
-                $attributefullname = $attributename;
-                if (isset($state['eidas:attr:names'])) {
-                    if (isset($state['eidas:attr:names'][$attributename])) {
-                        $attributefullname = $state['eidas:attr:names'][$attributename];
-                    }
-                }
-
-                $assertionData['attributes'][] = [
-                    'values' => $values,
-                    'friendlyName' => $attributename,
-                    'name' => $attributefullname,
-                ];
-            }
-
-            if (isset($state['saml:sp:NameID'])) {
-                $assertionData['NameID'] = $state['saml:sp:NameID'];
-            } else {
-                //Set the NameID from the eIDAS ID attribute
-                //$idAttrName = 'eIdentifier';  // TODO: is this mandatory in STORK? fro the moment, leave it out
-                $idAttrName = 'PersonIdentifier';
-                foreach ($assertionData['attributes'] as $attr) {
-                    if ($attr['friendlyName'] === $idAttrName
-                    || $attr['name'] === $idAttrName) {
-                        $assertionData['NameID'] = $attr['values'][0];
-                        break;
-                    }
-                }
-            }
-            $assertionData['NameIDFormat'] = sspmod_clave_SPlib::NAMEID_FORMAT_PERSISTENT;
-
-            //Set the effective LoA that was used:
-            if (isset($state['saml:AuthnContextClassRef'])) {
-                $assertionData['AuthnContextClassRef'] = $state['saml:AuthnContextClassRef'];
-            }
-
-            $assertions = [$storkResp->generateAssertion($assertionData)];
+        } else {
+            $assertions = self::buildStandardAssertions(
+                $idpMetadata,
+                $metadataUrl,
+                $singleassertion,
+                $storkResp,
+                $state
+            );
         }
 
-        //We build a status response with the status codes returned by Clave
         if (isset($state['eidas:raw:status'])) {
             $status = $state['eidas:raw:status'];
         } elseif (isset($state['eidas:status'])) {
@@ -255,16 +179,15 @@ class sspmod_clave_IdP_eIDAS
                 'SecondaryStatusCode' => $state['eidas:status']['SecondaryStatusCode'],
                 'StatusMessage' => $state['eidas:status']['StatusMessage'],
             ]);
-        } else { //The AuthSource was standard, so a call here can only happen on success
+        } else {
             $status = $storkResp->generateStatus([
-                'MainStatusCode' => sspmod_clave_SPlib::ST_SUCCESS,
+                'MainStatusCode' => SPlib::ST_SUCCESS,
             ]);
         }
 
         $resp = $storkResp->generateStorkResponse($status, $assertions, true, true, $storkize);
-        SimpleSAML\Logger::debug('Response to send to the remote SP: ' . $resp);
+        Logger::debug('Response to send to the remote SP: ' . $resp);
 
-        //Log statistics: sentResponse to remote clave SP
         $status = [
             'Code' => $state['eidas:status']['MainStatusCode'],
             'SubCode' => $state['eidas:status']['SecondaryStatusCode'],
@@ -279,9 +202,8 @@ class sspmod_clave_IdP_eIDAS
         if (isset($state['saml:AuthnRequestReceivedAt'])) {
             $statsData['logintime'] = microtime(true) - $state['saml:AuthnRequestReceivedAt'];
         }
-        SimpleSAML\Stats::log('clave:idp:Response', $statsData);
+        Stats::log('clave:idp:Response', $statsData);
 
-        //Redirect to the remote SP
         $post = [
             'SAMLResponse' => base64_encode($resp),
         ] + $forwardedParams;
@@ -290,7 +212,7 @@ class sspmod_clave_IdP_eIDAS
             $post['RelayState'] = $relayState;
         }
 
-        SimpleSAML\Utils\HTTP::submitPOSTData($acs, $post);
+        HTTP::submitPOSTData($acs, $post);
     }
 
     /**
@@ -301,19 +223,26 @@ class sspmod_clave_IdP_eIDAS
      * @param array $state The error state.
      * @throws Exception
      */
-    public static function handleAuthError(SimpleSAML\Error\Exception $exception, array $state)
+    public static function handleAuthError(Exception $exception, array $state)
     {
-        assert('isset($state["SPMetadata"])');
-        assert('isset($state["saml:ConsumerURL"])');
-        assert('array_key_exists("saml:RequestId", $state)'); // Can be NULL.
-        assert('array_key_exists("saml:RelayState", $state)'); // Can be NULL.
+        if (! isset($state['SPMetadata'])) {
+            Logger::error('Missing $state["SPMetadata"]');
+        }
+        if (! isset($state['saml:ConsumerURL'])) {
+            Logger::error('Missing $state["saml:ConsumerURL"]');
+        }
+        if (! array_key_exists('saml:RequestId', $state)) {
+            Logger::error('saml:RequestId key missing in $state array');
+        }
+        if (! array_key_exists('saml:RelayState', $state)) {
+            Logger::error('saml:RelayState key missing in $state array');
+        }
 
-        //Get the remote SP metadata
-        $spMetadata = SimpleSAML\Configuration::loadFromArray($state['SPMetadata']);
+        $spMetadata = Configuration::loadFromArray($state['SPMetadata']);
         $spEntityId = $spMetadata->getString('entityid', null);
-        SimpleSAML\Logger::debug('eIDAS SP remote metadata (' . $spEntityId . '): ' . print_r($spMetadata, true));
+        Logger::debug('eIDAS SP remote metadata (' . $spEntityId . '): ' . print_r($spMetadata, true));
 
-        SimpleSAML\Logger::info('Sending eIDAS Response to ' . var_export($spEntityId, true));
+        Logger::debug('Sending eIDAS Response to ' . var_export($spEntityId, true));
 
         $relayState = null;
         if (isset($state['saml:RelayState'])) {
@@ -324,16 +253,14 @@ class sspmod_clave_IdP_eIDAS
         $consumerURL = $state['saml:ConsumerURL'];
         $protocolBinding = $state['saml:Binding'];
 
-        $idp = sspmod_clave_IdP::getByState($state);
+        $idp = IdP::getByState($state);
 
-        //Get the hosted IdP metadata
         $idpMetadata = $idp->getConfig();
 
-        //$error = SimpleSAML\Error\Exception::fromException($exception);
-        $error = \SimpleSAML\Module\saml\Error::fromException($exception);
+        $error = Error::fromException($exception);
 
-        SimpleSAML\Logger::warning("Returning error to SP with entity ID '" . var_export($spEntityId, true) . "'.");
-        $exception->log(SimpleSAML\Logger::WARNING);
+        Logger::warning("Returning error to SP with entity ID '" . var_export($spEntityId, true) . "'.");
+        $exception->log(Logger::WARNING);
 
         $ar = self::buildResponse($idpMetadata, $spMetadata, $consumerURL);
         $ar->setInResponseTo($requestId);
@@ -355,25 +282,114 @@ class sspmod_clave_IdP_eIDAS
         if (isset($state['saml:AuthnRequestReceivedAt'])) {
             $statsData['logintime'] = microtime(true) - $state['saml:AuthnRequestReceivedAt'];
         }
-        SimpleSAML\Stats::log('saml:idp:Response:error', $statsData);
+        Stats::log('saml:idp:Response:error', $statsData);
 
-        $binding = SAML2\Binding::getBinding($protocolBinding);
+        $binding = Binding::getBinding($protocolBinding);
         $binding->send($ar);
+    }
+
+    /**
+     * Build the assertions, based on the existing variables (generate the xml and pass it as it were raw): if struct,
+     * we prefer struct, but if only one assertion, use standard, if >1 use struct
+     */
+    private static function buildStructAssertions($structAssertions, $storkResp, $state): array
+    {
+        $assertions = [];
+        foreach ($structAssertions as $assertionData) {
+
+            // TODO: This block is legacy. Should be implemented on the esmo
+            //   module authsource acs and removed from here. It is already
+            //   implemented on this acs
+            if (isset($state['saml:sp:NameID'])) {
+                $assertionData['NameID'] = $state['saml:sp:NameID'];
+            } else {
+                //Set the NameID from the eIDAS ID attribute
+                //$idAttrName = 'eIdentifier';
+                //TODO: is this mandatory in STORK? fro the moment, leave it out
+                // maybe define a param to mark the ID attr line in AdAS?
+                $idAttrName = 'PersonIdentifier';
+                foreach ($assertionData['attributes'] as $attr) {
+                    if ($attr['friendlyName'] === $idAttrName
+                        || $attr['name'] === $idAttrName) {
+                        $assertionData['NameID'] = $attr['values'][0];
+                        break;
+                    }
+                }
+            }
+            if (! isset($assertionData['NameIDFormat'])) {
+                $assertionData['NameIDFormat'] = SPlib::NAMEID_FORMAT_PERSISTENT;
+            }
+            $assertions[] = $storkResp->generateAssertion($assertionData);
+        }
+        return $assertions;
+    }
+
+    /**
+     * This method was called from a standard AuthSource and only has the standard attribute list
+     */
+    private static function buildStandardAssertions(
+        $idpMetadata,
+        $metadataUrl,
+        $singleassertion,
+        $storkResp,
+        $state
+    ): array {
+        $assertionData = [];
+        $assertionData['Issuer'] = $idpMetadata->getString('issuer', $metadataUrl);
+
+        $assertionData['attributes'] = [];
+        foreach ($singleassertion as $attributename => $values) {
+            $attributefullname = $attributename;
+            if (isset($state['eidas:attr:names'])) {
+                if (isset($state['eidas:attr:names'][$attributename])) {
+                    $attributefullname = $state['eidas:attr:names'][$attributename];
+                }
+            }
+
+            $assertionData['attributes'][] = [
+                'values' => $values,
+                'friendlyName' => $attributename,
+                'name' => $attributefullname,
+            ];
+        }
+
+        if (isset($state['saml:sp:NameID'])) {
+            $assertionData['NameID'] = $state['saml:sp:NameID'];
+        } else {
+            //Set the NameID from the eIDAS ID attribute
+            //$idAttrName = 'eIdentifier';
+            //TODO: is this mandatory in STORK? fro the moment, leave it out
+            $idAttrName = 'PersonIdentifier';
+            foreach ($assertionData['attributes'] as $attr) {
+                if ($attr['friendlyName'] === $idAttrName
+                    || $attr['name'] === $idAttrName) {
+                    $assertionData['NameID'] = $attr['values'][0];
+                    break;
+                }
+            }
+        }
+        $assertionData['NameIDFormat'] = SPlib::NAMEID_FORMAT_PERSISTENT;
+
+        if (isset($state['saml:AuthnContextClassRef'])) {
+            $assertionData['AuthnContextClassRef'] = $state['saml:AuthnContextClassRef'];
+        }
+
+        return [$storkResp->generateAssertion($assertionData)];
     }
 
     /**
      * Build a authentication response based on information in the metadata.
      *
-     * @param SimpleSAML\Configuration $idpMetadata The metadata of the IdP.
-     * @param SimpleSAML\Configuration $spMetadata The metadata of the SP.
+     * @param Configuration $idpMetadata The metadata of the IdP.
+     * @param Configuration $spMetadata The metadata of the SP.
      * @param string $consumerURL The Destination URL of the response.
      *
-     * @return SAML2\Response The SAML2 response corresponding to the given data.
+     * @return Response The SAML2 response corresponding to the given data.
      * @throws Exception
      */
     private static function buildResponse(
-        SimpleSAML\Configuration $idpMetadata,
-        SimpleSAML\Configuration $spMetadata,
+        Configuration $idpMetadata,
+        Configuration $spMetadata,
         string $consumerURL
     ): Response {
         $signResponse = $spMetadata->getBoolean('saml20.sign.response', null);
@@ -381,15 +397,15 @@ class sspmod_clave_IdP_eIDAS
             $signResponse = $idpMetadata->getBoolean('saml20.sign.response', true);
         }
 
-        $r = new SAML2\Response();
+        $r = new Response();
 
         $r->setIssuer(
             $idpMetadata->getString('entityID')
-        );  // TODO: quizá deba cambiar esto para que se devuelva el de la respuesta original. O hacerlo dialect-specific. Decidir
+        );  // TODO: you may need to change this so that the one in the original answer is returned. Or make it dialect-specific. To decide
         $r->setDestination($consumerURL);
 
         if ($signResponse) {
-            SimpleSAML\Module\saml\Message::addSign($idpMetadata, $spMetadata, $r);
+            Message::addSign($idpMetadata, $spMetadata, $r);
         }
 
         return $r;
