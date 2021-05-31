@@ -1,23 +1,21 @@
 <?php
 
-
-
+namespace SimpleSAML\Module\clave;
 
 // TODO (IdP still stork-clave1). Make it dual mode, both at SP and IdP, just response generatin lacking
 
 
-//STORK and eIDAS compliant SP
 use RobRichards\XMLSecLibs\XMLSecEnc;
 use RobRichards\XMLSecLibs\XMLSecurityDSig;
 use RobRichards\XMLSecLibs\XMLSecurityKey;
+use SimpleSAML\Logger;
 
-class sspmod_clave_SPlib
+class SPlib
 {
     public const VERSION = '2.0.3';
 
     /************ Usable constants and static vars *************/
 
-    //Supported signature key modes
     public const DSA_SHA1 = 'http://www.w3.org/2000/09/xmldsig#dsa-sha1';
 
     public const RSA_SHA1 = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1';
@@ -28,7 +26,6 @@ class sspmod_clave_SPlib
 
     public const RSA_SHA512 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512';
 
-    //Supported encryption algorithms (for symmetric keys and assymmetric)
     public const AES128_CBC = 'http://www.w3.org/2001/04/xmlenc#aes128-cbc';
 
     public const AES192_CBC = 'http://www.w3.org/2001/04/xmlenc#aes192-cbc';
@@ -43,7 +40,6 @@ class sspmod_clave_SPlib
 
     public const RSA_OAEP_MGF1P = 'http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p';
 
-    //Supported digest algorithms.
     public const SHA1 = 'http://www.w3.org/2000/09/xmldsig#sha1';
 
     public const SHA256 = 'http://www.w3.org/2001/04/xmlenc#sha256';
@@ -52,7 +48,6 @@ class sspmod_clave_SPlib
 
     public const SHA512 = 'http://www.w3.org/2001/04/xmlenc#sha512';
 
-    //Supported canonicalization methods.
     public const C14N = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315';
 
     public const C14N_COMMENTS = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments';
@@ -61,7 +56,6 @@ class sspmod_clave_SPlib
 
     public const EXC_C14N_COMMENTS = 'http://www.w3.org/2001/10/xml-exc-c14n#WithComments';
 
-    //Consent
     public const CNS_OBT = 'urn:oasis:names:tc:SAML:2.0:consent:obtained';
 
     public const CNS_UNS = 'urn:oasis:names:tc:SAML:2.0:consent:unspecified';
@@ -76,7 +70,6 @@ class sspmod_clave_SPlib
 
     public const CNS_INA = 'urn:oasis:names:tc:SAML:2.0:consent:inapplicable';
 
-    //Namespaces.
     public const NS_SAML2 = 'urn:oasis:names:tc:SAML:2.0:assertion';
 
     public const NS_SAML2P = 'urn:oasis:names:tc:SAML:2.0:protocol';
@@ -93,16 +86,18 @@ class sspmod_clave_SPlib
 
     public const NS_EIDAS = 'http://eidas.europa.eu/saml-extensions';
 
-    public const NS_EIDASATT = 'http://eidas.europa.eu/attributes/naturalperson';  // TODO este no sé muy bien qué pinta. Cuando reciba una req con datos lo sabré, y sabré si hay 2 o 4 y cambia y cómo se hace si hay varios (creo que habrá sólo 2 y serán alternativos, o igual uno de natural y otro de legal y puedan estar juntos). Se usa para el attribute value:transliyterated langInfo... y para la semánmtica de los attrs en el xs:type, pero este último ya queda fuera de scope.
+    //TODO this one I don't know very well what it looks like. When I receive a req with data I will know it,
+    // and I will know if there are 2 or 4 and it changes and how to do it if there are several
+    // (I think there will be only 2 and they will be alternative, or the same one of natural and another of legal and they can be together).
+    // It is used for the attribute value: transliyterated langInfo ... and for the semantic of the attrs in the xs: type, but the latter is already out of scope.
+    public const NS_EIDASATT = 'http://eidas.europa.eu/attributes/naturalperson';
 
-    //SAML Main status codes
     public const ST_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success';
 
     public const ST_REQUESTER = 'urn:oasis:names:tc:SAML:2.0:status:Requester';
 
     public const ST_RESPONDER = 'urn:oasis:names:tc:SAML:2.0:status:Responder';
 
-    //SAML Secondary status codes
     public const ST_ERR_AUTH = 'urn:oasis:names:tc:SAML:2.0:status:AuthnFailed';
 
     public const ST_ERR_ATTR = 'urn:oasis:names:tc:SAML:2.0:status:InvalidAttrNameOrValue';
@@ -111,21 +106,18 @@ class sspmod_clave_SPlib
 
     public const ST_ERR_DENIED = 'urn:oasis:names:tc:SAML:2.0:status:RequestDenied';
 
-    //SAML Attribute status codes
     public const ATST_AVAIL = 'Available';
 
     public const ATST_NOTAVAIL = 'NotAvailable';
 
     public const ATST_WITHLD = 'Withheld';
 
-    //eIDAS Levels of Assurance
     public const LOA_LOW = 'http://eidas.europa.eu/LoA/low';
 
     public const LOA_SUBST = 'http://eidas.europa.eu/LoA/substantial';
 
     public const LOA_HIGH = 'http://eidas.europa.eu/LoA/high';
 
-    //eIDAS SP types
     public const EIDAS_SPTYPE_PUBLIC = 'public';
 
     public const EIDAS_SPTYPE_PRIVATE = 'private';
@@ -135,9 +127,6 @@ class sspmod_clave_SPlib
     public const NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient';
 
     public const NAMEID_FORMAT_UNSPECIFIED = 'urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified';
-
-    //eIDAS attributes (FriendlyName -> Name)
-    public const EIDAS_ATTR_PREFIX = 'http://eidas.europa.eu/attributes/';
 
     /*************************  Error treatment, log and debug  *************************/
     public const LOG_TRACE = 0;
@@ -234,10 +223,7 @@ class sspmod_clave_SPlib
 
     public const ERR_GENERIC = 99;
 
-    // List of accepted attributes (friendly names)
-    // Edit as you need it.
     private static $ATTRIBUTES = [
-        // STORK 1 Personal Attributes
         'givenName' => 'http://www.stork.gov.eu/1.0/givenName',
         'surname' => 'http://www.stork.gov.eu/1.0/surname',
         'eIdentifier' => 'http://www.stork.gov.eu/1.0/eIdentifier',
@@ -259,9 +245,9 @@ class sspmod_clave_SPlib
         'eMail' => 'http://www.stork.gov.eu/1.0/eMail',
         'signedDoc' => 'http://www.stork.gov.eu/1.0/signedDoc',
         'isAgeOver' => 'http://www.stork.gov.eu/1.0/isAgeOver',
-        // New Personal Attributes
+
         'placeOfBirth' => 'http://www.stork.gov.eu/1.0/placeOfBirth',
-        // Academia Attributes
+
         'diplomaSupplement' => 'http://www.stork.gov.eu/1.0/diplomaSupplement',
         'currentStudiesSupplement' => 'http://www.stork.gov.eu/1.0/currentStudiesSupplement',
         'isStudent' => 'http://www.stork.gov.eu/1.0/isStudent',
@@ -274,19 +260,17 @@ class sspmod_clave_SPlib
         'academicRecommendation' => 'http://www.stork.gov.eu/1.0/academicRecommendation',
         'hasDegree' => 'http://www.stork.gov.eu/1.0/hasDegree',
 
-        //Clave Attributes
+
         'afirmaResponse' => 'http://www.stork.gov.eu/1.0/afirmaResponse',
         'isdnie' => 'http://www.stork.gov.eu/1.0/isdnie',
         'registerType' => 'http://www.stork.gov.eu/1.0/registerType',
         'citizenQAALevel' => 'http://www.stork.gov.eu/1.0/citizenQAALevel',
 
 
-        //Defined for the websso interface
+
         'usedIdP' => 'http://www.stork.gov.eu/1.0/usedIdP',
     ];
 
-    //PHP5.4 does not accept concatenations in declaration
-    //      "PersonIdentifier"     => self::EIDAS_ATTR_PREFIX."naturalperson/PersonIdentifier",
     private static $eIdasAttributes = [
         'PersonIdentifier' => 'http://eidas.europa.eu/attributes/naturalperson/PersonIdentifier',
         'FirstName' => 'http://eidas.europa.eu/attributes/naturalperson/CurrentGivenName',
@@ -331,7 +315,7 @@ class sspmod_clave_SPlib
         'RepresentativePlaceOfBirth' => 'http://eidas.europa.eu/attributes/naturalperson/representative/PlaceOfBirth',
 
 
-        //Clave 2 Attributes
+
         'AFirmaIdP' => 'http://es.minhafp.clave/AFirmaIdP',
         'GISSIdP' => 'http://es.minhafp.clave/GISSIdP',
         'AEATIdP' => 'http://es.minhafp.clave/AEATIdP',
@@ -341,32 +325,26 @@ class sspmod_clave_SPlib
 
         'RegisterType' => 'http://es.minhafp.clave/RegisterType',
 
-        //Defined for the websso interface
+
         'usedIdP' => 'http://es.minhafp.clave/usedIdP',
     ];
 
     /************ Internal config vars *************/
 
-    //The attribute names being used for signed node referencing
-    //[Notice that XPath expressions are case-sensitive]
     private static $referenceIds = ['ID', 'Id', 'id'];
 
-    //The prefix to form the full name of the attributes and the name format declaration.
     private static $AttrNamePrefix = 'http://www.stork.gov.eu/1.0/';
 
     private static $AttrNF = 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri';
 
-    //Protocol to be used (0:Stork, 1:eIDAS)
     private $mode;
 
     /*********** Request attributes **************/
 
-    //SamlResquestTokenID and generation timestamp
     private $ID;
 
     private $TSTAMP;
 
-    //Signature parameters
     private $signCert;
 
     private $signKey;
@@ -377,46 +355,40 @@ class sspmod_clave_SPlib
 
     private $digestMethod;
 
-    //SP
-  private $ServiceProviderName;    // SP readable name
+    private $ServiceProviderName;
 
-  private $Issuer;                 // SP Issuer identifier (usually a URL)
+    private $Issuer;
 
-    private $ReturnAddr;             // Address where SamlResponse must be returned
+    private $ReturnAddr;
 
-    private $SPEPS;                  // S-PEPS url, the destination of the request.
+    private $SPEPS;
 
-    private $QAALevel;               // Minimum authentication quality needed.
+    private $QAALevel;
 
     private $forceAuth;
 
-    private $sectorShare;            // Can eID be shared on the SP sector?
+    private $sectorShare;
 
-    private $crossSectorShare;       // Can eID be shared outside the SP sector?
+    private $crossSectorShare;
 
-    private $crossBorderShare;       // Can eID be shared outside the SP country?
+    private $crossBorderShare;
 
-    //For eId derivation
-  private $ServiceProviderCountry;     // S-PEPS country code
+    private $ServiceProviderCountry;
 
-  private $ServiceProviderSector;      // SP group of institutions ID
+    private $ServiceProviderSector;
 
-    private $ServiceProviderInstitution; // SP institution ID
+    private $ServiceProviderInstitution;
 
-    private $ServiceProviderApplication; // SP exact app ID
+    private $ServiceProviderApplication;
 
-    //V-IDP
-  private $ServiceProviderID;      // SPID unique identifier string
+    private $ServiceProviderID;
 
-  private $CitizenCountry;         // Citizen country code
+    private $CitizenCountry;
 
-    // The list of attributes to be requested.
     private $AttrList;
 
-    // The generated SamlAuthReq token.
     private $samlAuthReq;
 
-    //Parameters for Assertion encryption-decryption
     private $encryptCert;
 
     private $doCipher;
@@ -433,23 +405,17 @@ class sspmod_clave_SPlib
 
     /*********** Response attributes **************/
 
-    //All the certificates added to this array will be used to check the
-    //signature. If any of them succeeds, the response will be
-    //validated. Trust on this certs must have been previously inferred
-    //(no certification chain validation is performed)
     private $trustedCerts;
 
-    // The received SamlResponse token (xml string)
     private $SAMLResponseToken;
 
-    // Response attributes
-  private $signingCert;        // The signing certificat embedded on the response.
+    private $signingCert;
 
-  private $responseAssertions; // The assertions that the response contained with all relevant info.
+    private $responseAssertions;
 
-    private $inResponseTo;        // The id of the request associated to this response
+    private $inResponseTo;
 
-    private $responseIssuer;      // The issuer ID of the S-PEPS (who produced the response)
+    private $responseIssuer;
 
     private $responseNameId;
 
@@ -459,48 +425,32 @@ class sspmod_clave_SPlib
 
     private $AuthnContextClassRef;
 
-    private $responseDestination; // The URL where this resp is addressed.
+    private $responseDestination;
 
-    private $responseSuccess;    // Whether if the request was successful or not.
+    private $responseSuccess;
 
     private $responseStatus;
 
-    // Status info for the response: array with these fields:
-    //      MainStatusCode
-    //      SecondaryStatusCode
-    //      StatusMessage
+    private $consent;
 
-    private $consent;            //Whether consent has been given
+    private $requestId;
 
-    // Request attributes to be compared
-  private $requestId;             // The id of the related request
+    private $assertionConsumerUrl;
 
-  private $assertionConsumerUrl;  // The URL that expected the response
-
-    private $expectedIssuers;        // The List of allowed identifiers of the S-PEPS
+    private $expectedIssuers;
 
     private $mandatoryAttrList;
 
-    // List of requested attribute friendly
-    //  names that were mandatory
-
-
-
     /*********** Request attributes **************/
 
-    // All the SPs authorised to send requests. key is the issuer and
-    //value is the array of certificates that can use to sign the request
     private $trustedIssuers;
 
-    // The received SamlAuthnReq token (xml string)
     private $SAMLAuthnReqToken;
 
-    // The received LogoutRequest token (xml string)
     private $SLOReqToken;
 
     /************ eIDAS ***************/
 
-    //Type of SP (private sector, public sector)
     private $spType;
 
     private $nameIdFormat;
@@ -522,7 +472,6 @@ class sspmod_clave_SPlib
 
     private static $logToStdout = false;
 
-    //Default language for error messages.
     private $defaultLang = 'EN';
 
     private $msgLang;
@@ -578,10 +527,9 @@ class sspmod_clave_SPlib
     {
         self::trace(__CLASS__ . '.' . __FUNCTION__ . '()');
 
-        // Defaults
-    $this->mode = 0; //Default mode is Stork, the legacy one
+        $this->mode = 0;
 
-    $this->digestMethod = self::SHA512;
+        $this->digestMethod = self::SHA512;
         $this->c14nMethod = self::EXC_C14N;
 
         $this->trustedCerts = [];
@@ -603,15 +551,16 @@ class sspmod_clave_SPlib
 
         $this->idplist = null;
 
-        //request ID is randomly generated
         $this->ID = self::generateID();
     }
 
-    //Get the friendly name for a eIDAS attribute name
+    /**
+     * Get the friendly name for a eIDAS attribute name
+     */
     public static function getEidasFriendlyName($attributeName): string
     {
         if ($attributeName === null || $attributeName === '') {
-            # TODO: turn again to self::fail when fal is made static (as it should be)
+            //TODO: turn again to self::fail when fal is made static (as it should be)
             self::critical('[Code ' . self::ERR_GENERIC . '] ' . __FUNCTION__ . '::' . 'Empty or null attribute name.');
             throw new Exception(__FUNCTION__ . '::' . 'Empty or null attribute name', self::ERR_GENERIC);
         }
@@ -625,19 +574,25 @@ class sspmod_clave_SPlib
         return '';
     }
 
-    //Set the language in which the erorr codes will be shown
+    /**
+     * Set the language in which the erorr codes will be shown
+     */
     public function setErrorMessageLanguage($langcode)
     {
         $this->msgLang = strtoupper($langcode);
     }
 
-    //Add message translation.
+    /**
+     * Add message translation.
+     */
     public function addErrorMessageTranslation($langcode, $messages)
     {
         $this->ERR_MESSAGES[strtoupper($langcode)] = $messages;
     }
 
-    // Returns the list of supported STORK attribute friendly names
+    /**
+     * @return int[]|string[] Returns the list of supported STORK attribute friendly names
+     */
     public function listSupportedAttributes()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -645,7 +600,9 @@ class sspmod_clave_SPlib
         return array_keys(self::$ATTRIBUTES);
     }
 
-    // Returns the list of supported eIDAS attribute friendly names
+    /**
+     * @return int[]|string[] Returns the list of supported eIDAS attribute friendly names
+     */
     public function listEidasSupportedAttributes()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -653,12 +610,11 @@ class sspmod_clave_SPlib
         return array_keys(self::$eIdasAttributes);
     }
 
-    //Add an attribute to be requested.
-    // $friendlyName: the name of the attribute, from the supported list.
-    // $required:     true if mandatory, false if optional.
-    // $values:       [optional] some attributes accept sending attribute values as parameters. array of value strings.
-    // $escape:       [optional] false if value must be set unescaped (to allow embedded xml, like SamlEngine does)
-    //                           Notice that this could provoke validation issues.
+    /**
+     * @param $friendlyName: the name of the attribute, from the supported list.
+     * @throws Exception
+     * Notice that this could provoke validation issues.
+     */
     public function addRequestAttribute($friendlyName, $required = false, $values = null, $escape = true)
     {
         self::debug('Adding attribute ' . $friendlyName . ' required(' . self::bts($required) . ')');
@@ -670,7 +626,6 @@ class sspmod_clave_SPlib
             $prefix = 'eidas';
         }
 
-        // We check if it is a supported attribute (always allow if mandatory)
         if ($this->mode === 0) {
             if (! $required) {
                 self::$ATTRIBUTES[$friendlyName] or $this->fail(
@@ -680,10 +635,6 @@ class sspmod_clave_SPlib
                 );
             }
         }
-
-        // On eIDAS, allow always?
-        //if($this->mode === 1)
-        //    self::$eIdasAttributes[$friendlyName] or $this->fail(__FUNCTION__, self::ERR_NONEXIST_STORK_ATTR, $friendlyName);
 
         if ($values) {
             if (! is_array($values)) {
@@ -737,10 +688,7 @@ class sspmod_clave_SPlib
             . $tagClose
             . $valueAddition
             . $closeTag;
-        }
-
-        if ($this->mode === 1) {
-            //If we can't translate the friendlyname to a name, use it as is
+        } elseif ($this->mode === 1) {
             $name = $friendlyName;
             if (array_key_exists($friendlyName, self::$eIdasAttributes)) {
                 $name = self::$eIdasAttributes[$friendlyName];
@@ -756,17 +704,19 @@ class sspmod_clave_SPlib
             . $closeTag;
         }
 
-        //We add the attribute to the requested attributes array
-        // [Notice that an attribute can be requested multiple times]
-        if ($attrLine !== '') {
+        if (isset($attrLine) && $attrLine !== '') {
             $this->AttrList[] = $attrLine;
         }
     }
 
-    // Set the key that will be used to sign requests.
-    // $cert:    x509 certificate associated with the key, to be included on the keyinfo
-    // $key:     private key, of a supported public key cryptosystem.
-    // $keytype: Kind of key [See constants]
+    /**
+     * Set the key that will be used to sign requests.
+     *
+     * @param x509 $cert certificate associated with the key, to be included on the keyinfo
+     * @param private $key key, of a supported public key cryptosystem.
+     * @param string $keytype Kind of key [See constants]
+     * @throws Exception
+     */
     public function setSignatureKeyParams($cert, $key, $keytype = self::RSA_SHA512)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -776,8 +726,9 @@ class sspmod_clave_SPlib
         $this->signKeyType = $keytype;
     }
 
-    // Set the digest and canonicalization methods to be used for
-    // request signature. See constants for allowed values.
+    /**
+     * Set the digest and canonicalization methods to be used for request signature. See constants for allowed values.
+     */
     public function setSignatureParams($digestMethod, $c14nMethod)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -786,11 +737,9 @@ class sspmod_clave_SPlib
         $this->c14nMethod = $c14nMethod;
     }
 
-    // $name        -> String. Readable name of the SP.
-    // $issuer      -> String  SP identifier towards S-PEPS (usually a URL)
-    // $returnAddr  -> String. URL where the SamlResponse will be delivered.
-    // $spid        -> String. (Optional) IDentifier for this SP, assigned by some entity (MS? S-PEPS?)
-    // $countryCode -> String. (Optional) Country code for the SP country
+    /**
+     * @param string $issuer  SP identifier towards S-PEPS (usually a URL)
+     */
     public function setServiceProviderParams($name, $issuer, $returnAddr)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -800,18 +749,23 @@ class sspmod_clave_SPlib
         $this->ReturnAddr = $returnAddr;
     }
 
-    //Enables the force authentication flag on the request (default false)
+    /**
+     * Enables the force authentication flag on the request (default false)
+     */
     public function forceAuthn()
     {
         $this->forceAuth = true;
     }
 
-    //Params with more specific and leveled SP ID information. Mandatory if the request
-    //is addressed to a country which performs eID derivation.
-    // $countryCode -> The country code of the SP
-    // $sector      -> The sector (like a group of institutions) ID (must be settled by someone)
-    // $institution -> The institution ID of the SP (must be settled by someone)
-    // $application -> The SP most specific ID, per application (must be settled by someone).
+    /**
+     * Params with more specific and leveled SP ID information. Mandatory if the request is addressed to a country which
+     * performs eID derivation.
+     *
+     * @param $countryCode: The country code of the SP
+     * @param $sector: The sector (like a group of institutions) ID (must be settled by someone)
+     * @param $institution: The institution ID of the SP (must be settled by someone)
+     * @param $application: The SP most specific ID, per application (must be settled by someone).
+     */
     public function setSPLocationParams($countryCode, $sector, $institution, $application)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -822,9 +776,12 @@ class sspmod_clave_SPlib
         $this->ServiceProviderApplication = $application;
     }
 
-    //Params needed when the request is addressed to a country that uses V-IDP
-    // $spId               -> Unique SP identifier, usually spcountry-sp-sector-spinst-spapp
-    // $citizenCountryCode -> The country code of the citizen
+    /**
+     * Params needed when the request is addressed to a country that uses V-IDP
+     *
+     * @param $spId: Unique SP identifier, usually spcountry-sp-sector-spinst-spapp
+     * @param $citizenCountryCode: The country code of the citizen
+     */
     public function setSPVidpParams($spId, $citizenCountryCode)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -833,13 +790,9 @@ class sspmod_clave_SPlib
         $this->CitizenCountry = $citizenCountryCode;
     }
 
-    // $EntryURL:          String. S-PEPS URL.
-    // $QAALevel:          Int.  Min Quality Authentication Assurance Level
-    //                           requested (1-3)? default 1 (soft auth, pwd),
-    //                           2: cert, 3:smartcard
-    // $sectorShare:       Can eID be shared on the SP sector?
-    // $crossSectorShare:  Can eID be shared outside the SP sector?
-    // $crossBorderShare:  Can eID be shared outside the SP country?
+    /**
+     * @param $EntryURL: String. S-PEPS URL.
+     */
     public function setSTORKParams(
         $EntryURL,
         $QAALevel = 1,
@@ -856,14 +809,21 @@ class sspmod_clave_SPlib
         $this->crossBorderShare = $crossBorderShare;
     }
 
-    //If the request needs to have a scoping of the allowed idps when proxying this request
+    /**
+     * If the request needs to have a scoping of the allowed idps when proxying this request
+     *
+     * @param $IdpList
+     */
     public function setIdpList($IdpList)
     {
         $this->idplist = $IdpList;
     }
 
-    //Establishes an equivalence between Stork QAA levels and eIDAS LoA
-    //levels
+    /**
+     * Establishes an equivalence between Stork QAA levels and eIDAS LoA levels
+     *
+     * @param $QAA
+     */
     public static function qaaToLoA($QAA): string
     {
         if ($QAA === null || $QAA === '') {
@@ -910,8 +870,11 @@ class sspmod_clave_SPlib
         return 1;
     }
 
-    // $signed:  Wether if the generated request has to be digitally signed or not.
-    //Return: String The STORK SAML Auth request token.
+    /**
+     * @param bool $signed Wether if the generated request has to be digitally signed or not.
+     * @return false|string String The STORK SAML Auth request token.
+     * @throws Exception
+     */
     public function generateStorkAuthRequest($signed = true)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -947,11 +910,12 @@ class sspmod_clave_SPlib
         }
 
         $assertionConsumerServiceURL = 'AssertionConsumerServiceURL="' . htmlspecialchars($this->ReturnAddr) . '" ';
-//    if($this->mode === 1)  //On eIDAS, this SHOULD NOT be sent. // TODO: but on Clave-2.0, it must. eIDAS supports sending it just as the address stated in the metadata. We'll do so.
-//        $assertionConsumerServiceURL = "";
+        //if($this->mode === 1)  //On eIDAS, this SHOULD NOT be sent. //
+        // TODO: but on Clave-2.0, it must. eIDAS supports sending it just as the address stated in the metadata. We'll do so.
+        //$assertionConsumerServiceURL = "";
 
         $protocolBinding = 'ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" ';
-        if ($this->mode === 1) {  //On eIDAS, this SHOULD NOT be sent.
+        if ($this->mode === 1) {
             $protocolBinding = '';
         }
 
@@ -982,7 +946,7 @@ class sspmod_clave_SPlib
         . 'Version="2.0">';
 
         self::debug('Setting request issuer.');
-        //Issuer
+
         $Issuer = '<saml2:Issuer '
       . 'Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">'
       . htmlspecialchars($this->Issuer)
@@ -1000,9 +964,7 @@ class sspmod_clave_SPlib
             $RequestedAttributes .= '</' . $nsPrefix2 . ':RequestedAttributes>';
         }
 
-        if ($this->mode === 0) {  //Stork only
-
-            //Stork profile extensions: authentication additional attributes (optional)
+        if ($this->mode === 0) {
             $StorkExtAuthAttrs = '';
             if ($this->ServiceProviderID !== null && $this->ServiceProviderID !== ''
         && $this->CitizenCountry !== null && $this->CitizenCountry !== ''
@@ -1028,12 +990,10 @@ class sspmod_clave_SPlib
             }
 
             self::debug('Setting request QAA.');
-            //Stork profile extensions: QAA
             $QAA = '<stork:QualityAuthenticationAssuranceLevel>'
             . htmlspecialchars($this->QAALevel)
             . '</stork:QualityAuthenticationAssuranceLevel>';
 
-            //Stork profile extensions: SP info (optional)
             if ($this->ServiceProviderCountry !== null && $this->ServiceProviderCountry !== ''
         && $this->ServiceProviderSector !== null && $this->ServiceProviderSector !== ''
         && $this->ServiceProviderInstitution !== null && $this->ServiceProviderInstitution !== ''
@@ -1052,7 +1012,6 @@ class sspmod_clave_SPlib
             }
 
             self::debug('Setting request eID sharing permissions.');
-            //Stork profile extensions: eId sharing permissions.
             $eIdShareInfo = '<storkp:eIDSectorShare>' . htmlspecialchars(
                 self::bts($this->sectorShare)
             ) . '</storkp:eIDSectorShare>'
@@ -1065,8 +1024,7 @@ class sspmod_clave_SPlib
         }
 
         $SPtype = '';
-        if ($this->mode === 1) {  //eIDAS only
-            //Sending is optional, but in that case, it must be set at the eIDAS node metadata
+        if ($this->mode === 1) {
             if ($this->spType !== null && $this->spType !== '') {
                 $SPtype = '<eidas:SPType>' . $this->spType . '</eidas:SPType>';
             }
@@ -1087,16 +1045,12 @@ class sspmod_clave_SPlib
 
         $NameIDPolicy = '';
         $AuthnContext = '';
-        if ($this->mode === 1) {  //eIDAS only
-
-            //Set the format of the identifier of the principal (persistent, transient, unspecified)
+        if ($this->mode === 1) {
             $NameIDPolicy = '<saml2p:NameIDPolicy'
             . ' AllowCreate="true"'
             . ' Format="' . $this->nameIdFormat . '"'
             . ' />';
 
-            //Set the required Level of Assurance for authentication
-            //(comparison is always minimum-required-value)
             $LoA = $this->QAALevel;
             if (is_int($this->QAALevel)) {
                 $LoA = self::qaaToLoA($this->QAALevel);
@@ -1125,7 +1079,6 @@ class sspmod_clave_SPlib
             }
         }
 
-        //Compose the AuthnRequest
         $this->samlAuthReq = $RootTagOpen
       . $Issuer
       . $Extensions
@@ -1157,7 +1110,6 @@ class sspmod_clave_SPlib
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
-        //Will overwrite ID generated on construction
         $this->ID = $id;
     }
 
@@ -1168,7 +1120,9 @@ class sspmod_clave_SPlib
         return $this->TSTAMP;
     }
 
-    // Returns the generated SAMLAuthRequest
+    /**
+     * @return string Returns the generated SAMLAuthRequest
+     */
     public function getSamlAuthReqToken(): string
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1180,8 +1134,12 @@ class sspmod_clave_SPlib
         return '';
     }
 
-    // Builds a POST request body (for user convenience)
-    // $DestCountryCode -> The C-PEPS country code.
+    /**
+     * Builds a POST request body (for user convenience)
+     *
+     * @param $DestCountryCode: The C-PEPS country code.
+     * @throws Exception
+     */
     public function buildPOSTBody($DestCountryCode): string
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1193,7 +1151,11 @@ class sspmod_clave_SPlib
         return 'country=' . $DestCountryCode . '&SAMLRequest=' . urlencode(base64_encode($this->samlAuthReq));
     }
 
-    //Bool to string
+    /**
+     * Bool to string
+     *
+     * @param $boolVar
+     */
     public static function bts($boolVar): string
     {
         self::trace(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1204,7 +1166,11 @@ class sspmod_clave_SPlib
         return 'false';
     }
 
-    //String to Bool
+    /**
+     * String to Bool
+     *
+     * @param $stringVar
+     */
     public static function stb($stringVar): bool
     {
         self::trace(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1218,7 +1184,7 @@ class sspmod_clave_SPlib
     /*******************  SAML RESPONSE PARSING AND VALIDATION  *******************/
 
     /**
-     * Checks if a private key is valid and adds PEM headers if necessary
+     * Checks if a x509 private key is valid and adds PEM headers if necessary
      *
      * @throws Exception
      */
@@ -1230,7 +1196,6 @@ class sspmod_clave_SPlib
 
         $keyPem = $key;
 
-        // We check it is a valid X509 private key
         try {
             @openssl_pkey_get_private($keyPem) or $this->fail(__FUNCTION__, self::ERR_RSA_KEY_READ);
         } catch (Exception $e) {
@@ -1245,7 +1210,13 @@ class sspmod_clave_SPlib
         return $keyPem;
     }
 
-    //Checks if cert is valid and adds PEM headers if necessary
+    /**
+     * Checks if X509 cert is valid and adds PEM headers if necessary
+     *
+     * @param $cert
+     * @return mixed|string
+     * @throws Exception
+     */
     public function checkCert($cert)
     {
         if ($cert === null || $cert === '') {
@@ -1253,7 +1224,6 @@ class sspmod_clave_SPlib
         }
 
         $certPem = $cert;
-        // We check it is a valid X509 certificate
 
         if (! @openssl_x509_read($certPem)) {
             $certPem = str_replace("\n", '', $certPem);
@@ -1267,8 +1237,12 @@ class sspmod_clave_SPlib
         return $certPem;
     }
 
-    //Turns a PEM certificate into a one-line b64 string (removing
-    //headers, if any, and chunk splitting)
+    /**
+     * Turns a PEM certificate into a one-line b64 string (removing headers, if any, and chunk splitting)
+     *
+     * @param $cert
+     * @return array|string|string[]
+     */
     public static function implodeCert($cert)
     {
         $certLine = str_replace("\n", '', $cert);
@@ -1278,7 +1252,12 @@ class sspmod_clave_SPlib
         return $certLine;
     }
 
-    // Adds a certificate to the trusted certificate list
+    /**
+     * Adds a certificate to the trusted certificate list
+     *
+     * @param $cert
+     * @throws Exception
+     */
     public function addTrustedCert($cert)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1290,9 +1269,14 @@ class sspmod_clave_SPlib
         $this->trustedCerts[] = $this->checkCert($cert);
     }
 
-    //Set all values that may be compared
-
-    // $mandatoryAttrs: List of attribute friendly names thar were mandatory on the request.
+    /**
+     * Set all values that may be compared
+     *
+     * @param $requestId
+     * @param null $assertionConsumerUrl
+     * @param null $expectedIssuers
+     * @param null $mandatoryAttrList List of attribute friendly names thar were mandatory on the request.
+     */
     public function setValidationContext(
         $requestId,
         $assertionConsumerUrl = null,
@@ -1307,29 +1291,31 @@ class sspmod_clave_SPlib
         $this->mandatoryAttrList = $mandatoryAttrList;
     }
 
-    //Validates the received SamlResponse by comparing it to the request  // TODO adapt for eIDAs: review
+    /**
+     * Validates the received SamlResponse by comparing it to the request  // TODO adapt for eIDAs: review
+     *
+     * @param $storkSamlResponseToken
+     * @param bool $checkDates
+     * @param bool $checkSignature
+     * @throws Exception
+     */
     public function validateStorkResponse($storkSamlResponseToken, $checkDates = true, $checkSignature = true)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
-
-        self::trace("Received SamlResponse token:\n" . $storkSamlResponseToken);
 
         if ($storkSamlResponseToken === null || $storkSamlResponseToken === '') {
             $this->fail(__FUNCTION__, self::ERR_SAMLRESP_EMPTY);
         }
 
         self::debug('Parsing response.');
-        //Checks if it is a valid XML string.
         $samlResponse = $this->parseXML($storkSamlResponseToken);
 
-        //Validates the signature
         if ($checkSignature) {
             self::debug('Checking response signature.');
             $this->validateXMLDSignature($storkSamlResponseToken);
         }
 
         self::debug('Checking response validity.');
-        //Root node must be 'Response'
         if (strtolower($samlResponse->getName()) !== 'response') {
             $this->fail(__FUNCTION__, self::ERR_UNEXP_ROOT_NODE);
         }
@@ -1342,7 +1328,6 @@ class sspmod_clave_SPlib
         self::trace('responseDestination:  ' . $this->responseDestination);
         self::trace('responseIssuer:       ' . $this->responseIssuer);
 
-        //Check existance of mandatory elements/attributes
         if (! $this->inResponseTo || $this->inResponseTo === '') {
             $this->fail(__FUNCTION__, self::ERR_RESP_NO_REQ_ID);
         }
@@ -1354,7 +1339,6 @@ class sspmod_clave_SPlib
         }
 
         self::debug('Comparing with context values if set.');
-        // Compare with context values, if set
         if ($this->requestId) {
             self::debug('Comparing with requestID.');
             if (trim($this->requestId) !== trim($this->inResponseTo)) {
@@ -1384,14 +1368,11 @@ class sspmod_clave_SPlib
         }
 
         self::debug('Parsing response status.');
-        //Get status info
         self::parseStatus($samlResponse);
 
-        // If successful, must have at least one assertion.
         if (self::isSuccess($aux)) {
             self::debug('Response Successful.');
 
-            //Search for encrypted assertions and try to decrypt them beforehand
             if ($this->doDecipher === true) {
                 self::debug('Searching for encrypted assertions...');
                 $samlResponse = $this->decryptAssertions($storkSamlResponseToken);
@@ -1406,14 +1387,11 @@ class sspmod_clave_SPlib
             }
 
             self::debug('Parsing response assertions.');
-            //Get attribute info
             self::parseAssertions($assertions);
 
             self::debug('Checking validity dates for each assertion.');
             $now = time();
             foreach ($assertions as $assertion) {
-
-            //Validate validity dates for each assertion
                 if ($checkDates) {
                     $NotBefore = '' . $assertion->Conditions->attributes()->NotBefore;
                     $NotOnOrAfter = '' . $assertion->Conditions->attributes()->NotOnOrAfter;
@@ -1422,7 +1400,6 @@ class sspmod_clave_SPlib
                 }
             }
 
-            //Get data from the first assertion
             if ($samlResponse->children(self::NS_SAML2)->Assertion[0]->Subject) {
                 $this->responseNameId = '' . $samlResponse->children(self::NS_SAML2)->Assertion[0]->Subject->NameID;
                 $this->responseNameIdFrm = '' . $samlResponse->children(
@@ -1442,7 +1419,6 @@ class sspmod_clave_SPlib
             self::trace('AuthnContextClassRef: ' . $this->AuthnContextClassRef);
         }
 
-        // Once all assertions are parsed check if all mandatory attributes have been served.
         if ($this->mandatoryAttrList) {
             self::debug('Checking that mandatory attributes were served.');
             foreach ($this->mandatoryAttrList as $mAttr) {
@@ -1467,8 +1443,11 @@ class sspmod_clave_SPlib
         $this->SAMLResponseToken = $storkSamlResponseToken;
     }
 
-    //Returns whether the request was in success status.
-    // $statusInfo: Status primary and secondary (if exists) codes will be returned here.
+    /**
+     * Returns whether the request was in success status.
+     *
+     * @param $statusInfo: Status primary and secondary (if exists) codes will be returned here.
+     */
     public function isSuccess(&$statusInfo): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1478,7 +1457,9 @@ class sspmod_clave_SPlib
         return $this->responseSuccess;
     }
 
-    //Returns the status array
+    /**
+     * @return mixed Returns the status array
+     */
     public function getResponseStatus()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1486,10 +1467,12 @@ class sspmod_clave_SPlib
         return $this->responseStatus;
     }
 
-    // Returns the signing certificate for the response that came
-    // embedded on the keyinfo node, so the user can compare it.
-    // Returns the certificate in PEM format or NULL.
-    // Won't be set if signature validation is skipped.
+    /**
+     * @return mixed Returns the signing certificate for the response that came
+     * embedded on the keyinfo node, so the user can compare it.
+     * Returns the certificate in PEM format or NULL.
+     * Won't be set if signature validation is skipped.
+     */
     public function getEmbeddedSigningCert()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1497,7 +1480,10 @@ class sspmod_clave_SPlib
         return $this->signingCert;
     }
 
-    // Returns the issuer ID of the S-PEPS.
+    /**
+     * @return mixed Returns the issuer ID of the S-PEPS.
+     * @throws Exception
+     */
     public function getRespIssuer()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1553,7 +1539,10 @@ class sspmod_clave_SPlib
         return $this->AuthnContextClassRef;
     }
 
-    // Returns the ID of the request this response is addressed to.
+    /**
+     * @return mixed Returns the ID of the request this response is addressed to.
+     * @throws Exception
+     */
     public function getInResponseTo()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1565,7 +1554,10 @@ class sspmod_clave_SPlib
         return $this->inResponseTo;
     }
 
-    // Returns the URL at which this response was addressed to.
+    /**
+     * @return mixed Returns the URL at which this response was addressed to.
+     * @throws Exception
+     */
     public function getResponseDestination()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1577,8 +1569,10 @@ class sspmod_clave_SPlib
         return $this->responseDestination;
     }
 
-    // Returns an array of assertions with all relevant information:
-    // subject, issuer, attributes
+    /**
+     * @return mixed Returns an array of assertions with all relevant information: subject, issuer, attributes
+     * @throws Exception
+     */
     public function getAssertions()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1590,8 +1584,11 @@ class sspmod_clave_SPlib
         return $this->responseAssertions;
     }
 
-    // Returns a list containing all the attributes stated on all the
-    // assertions merged, for each attribute, a list of values is provided
+    /**
+     * @return array Returns a list containing all the attributes stated on all the
+     * assertions merged, for each attribute, a list of values is provided
+     * @throws Exception
+     */
     public function getAttributes(): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1621,8 +1618,11 @@ class sspmod_clave_SPlib
         return $attributes;
     }
 
-    // Returns a list containing the pairing between attribute names and
-    // friendly anmes, if available
+    /**
+     * @return array Returns a list containing the pairing between attribute names and
+     * friendly names, if available
+     * @throws Exception
+     */
     public function getAttributeNames(): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1648,14 +1648,11 @@ class sspmod_clave_SPlib
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
-        self::trace("SamlResponse token:\n" . $storkSamlResponseToken);
-
         if ($storkSamlResponseToken === null || $storkSamlResponseToken === '') {
             $this->fail(__FUNCTION__, self::ERR_SAMLRESP_EMPTY);
         }
 
         self::debug('Parsing response.');
-        //Checks if it is a valid XML string.
         $samlResponse = $this->parseXML($storkSamlResponseToken);
 
         return '' . $samlResponse['InResponseTo'];
@@ -1663,7 +1660,13 @@ class sspmod_clave_SPlib
 
     /*******************  SAML AUTHN REQUEST PARSING AND VALIDATION  *********************/
 
-    // Adds a trusted request issuer to the list. Must
+    /**
+     * Adds a trusted request issuer to the list. Must
+     *
+     * @param $issuer
+     * @param $certs
+     * @throws Exception
+     */
     public function addTrustedRequestIssuer($issuer, $certs)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1682,34 +1685,33 @@ class sspmod_clave_SPlib
         }
     }
 
-    //Validates the received SamlAuthnReq towards the list of authorised issuers.
+    /**
+     * Validates the received SamlAuthnReq towards the list of authorised issuers.
+     *
+     * @param $storkSamlRequestToken
+     * @throws Exception
+     */
     public function validateStorkRequest($storkSamlRequestToken)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
-
-        self::trace("Received SamlRequest token:\n" . $storkSamlRequestToken);
 
         if ($storkSamlRequestToken === null || $storkSamlRequestToken === '') {
             $this->fail(__FUNCTION__, self::ERR_SAMLRESP_EMPTY);
         }
 
         self::debug('Parsing request.');
-        //Checks if it is a valid XML string.
         $samlReq = $this->parseXML($storkSamlRequestToken);
 
         self::debug('Checking request validity.');
-        //Root node must be 'AuthnRequest'
         if (strtolower($samlReq->getName()) !== 'authnrequest') {
             $this->fail(__FUNCTION__, self::ERR_UNEXP_ROOT_NODE);
         }
 
-        //We get the issuer
         $issuer = '' . $samlReq->children(self::NS_SAML2)->Issuer;
         if ($issuer === '') {
             $issuer = '' . $samlReq['ProviderName'];
         } // Dirty workaround for Clave 2.0 java SPs not using issuers TODO: verify.
 
-        //Validates the signature
         self::debug('Checking request signature. Issuer: ' . $issuer);
 
         $verified = false;
@@ -1730,9 +1732,13 @@ class sspmod_clave_SPlib
         $this->SAMLAuthnReqToken = $storkSamlRequestToken;
     }
 
-    //Returns an array with the important parameters of the received request
-    // If a Request is passed on the parameter, then the return is related
-    // to it and not to the request in the object state       // TODO test eIDAS support
+    /**
+     * @param null $SAMLAuthnReqToken
+     * @return array Returns an array with the important parameters of the received request
+     * If a Request is passed on the parameter, then the return is related
+     * to it and not to the request in the object state
+     * TODO test eIDAS support
+     */
     public function getStorkRequestData($SAMLAuthnReqToken = null): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -1762,11 +1768,10 @@ class sspmod_clave_SPlib
 
         $ext = $samlReq->children(self::NS_SAML2P)->Extensions;
 
-        //Check for scoping (list of allowed remote IDPs in a proxying request)
         $ret['idplist'] = $this->parseScoping($samlReq);
         // TODO: SEGUIR: funciona?
 
-        if ($this->mode === 0) { //Stork
+        if ($this->mode === 0) {
             self::debug('Mode 0');
 
             $authAttrs = $ext->children(self::NS_STORKP, false)->AuthenticationAttributes->VIDPAuthenticationAttributes;
@@ -1792,15 +1797,13 @@ class sspmod_clave_SPlib
 
                 $ret['requestedAttributes'][] = [
                     'name' => '' . $reqAttr->attributes()->Name,
-                    //'friendlyName' => "".$reqAttr->attributes()->Name,
-                    //Also empty string will be evaluated to false
                     'isRequired' => strtolower('' . $reqAttr->attributes()->isRequired) === 'true',
                     'values' => $values,
                 ];
             }
         }
 
-        if ($this->mode === 1) { //eIDAS
+        if ($this->mode === 1) {
             self::debug('Mode 1');
 
             $authContext = $samlReq->children(self::NS_SAML2P)->RequestedAuthnContext;
@@ -1818,10 +1821,10 @@ class sspmod_clave_SPlib
             $ret['spID'] = '';
 
             $ret['Comparison'] = '' . $authContext->attributes()->Comparison;
-            $ret['LoA'] = '' . $authContext->children(self::NS_SAML2, false)->AuthnContextClassRef; //*****
+            $ret['LoA'] = '' . $authContext->children(self::NS_SAML2, false)->AuthnContextClassRef;
             $ret['SPType'] = '' . $ext->children(self::NS_EIDAS, false)->SPType;
 
-            $ret['QAA'] = self::loaToQaa($ret['LoA']);    //Derived from LoA
+            $ret['QAA'] = self::loaToQaa($ret['LoA']);
 
             $ret['IdAllowCreate'] = '' . $nameIDPolicy->attributes()->AllowCreate;
             $ret['IdFormat'] = '' . $nameIDPolicy->attributes()->Format;
@@ -1836,14 +1839,12 @@ class sspmod_clave_SPlib
                 $ret['requestedAttributes'][] = [
                     'friendlyName' => '' . $reqAttr->attributes()->FriendlyName,
                     'name' => '' . $reqAttr->attributes()->Name,
-                    //Also empty string will be evaluated to false
                     'isRequired' => strtolower('' . $reqAttr->attributes()->isRequired) === 'true',
                     'values' => $values,
                 ];
             }
         }
 
-        //Include the embedded certificate in the returned data
         $ret['spCert'] = '' . $samlReq->children(self::NS_XMLDSIG)->Signature->KeyInfo->X509Data->X509Certificate;
 
         return $ret;
@@ -1851,12 +1852,14 @@ class sspmod_clave_SPlib
 
     /*******************  SAML RESPONSE GENERATION  *********************/
 
-    //Returns an array with the assertions from the response in the shape of xml strings
+    /**
+     * @return array Returns an array with the assertions from the response in the shape of xml strings
+     * @throws Exception
+     */
     public function getRawAssertions(): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
-        //If there are encrypted assertions, try to decrypt them beforehand
         if ($this->doDecipher === true) {
             self::debug('Decrypt assertions before returning them...');
             $samlResponse = $this->decryptAssertions($this->SAMLResponseToken);
@@ -1890,19 +1893,16 @@ class sspmod_clave_SPlib
         return $status;
     }
 
+    /**
+     * @return string randomly generated 128 bits request ID
+     */
     public static function generateID(): string
     {
-        //randomly generated 128 bits request ID
         return '_' . md5(uniqid(mt_rand(), true));
     }
 
     public static function generateTimestamp($time = null)
     {
-
-      //Not compatible with SimpleSamlPHP IdP. In fact, standard SAML
-        //requires ZULU dates, not with a timezone
-        //return date('c',time());
-
         if ($time === null) {
             $time = time();
         }
@@ -1931,10 +1931,13 @@ class sspmod_clave_SPlib
         $this->responseIssuer = $issuer;
     }
 
+    /**
+     * @param $status
+     * @param false $isRaw If raw, it is a string, return and we're done.
+     * @throws Exception
+     */
     public function generateStatus($status, $isRaw = false): string
     {
-
-      //If raw, it is a string, return and we're done.
         if ($isRaw) {
             if (! is_string($status) || $status === '') {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Status should be a string.');
@@ -1974,12 +1977,18 @@ class sspmod_clave_SPlib
         return $statusNode;
     }
 
+    /**
+     * @param $assertionData
+     * @param false $isRaw If raw, it is a string, return as is or add the namespaces if needed.
+     * @param bool $storkize
+     * @return mixed|string
+     * @throws Exception
+     */
     public function generateAssertion($assertionData, $isRaw = false, $storkize = true)
     {
         $assertion = null;
         $now = time();
 
-        //If raw, it is a string, return as is or add the namespaces if needed.
         if ($isRaw) {
             if (! is_string($assertionData) || $assertionData === '') {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Assertion should be a string.');
@@ -1987,7 +1996,6 @@ class sspmod_clave_SPlib
 
             $assertion = $assertionData;
             if ($storkize === true) {
-                //Wrap the object around a root with the used namespaces
                 $xml = '<root '
                   . 'xmlns:saml2p="' . self::NS_SAML2P . '" '
                   . 'xmlns:ds="' . self::NS_XMLDSIG . '" '
@@ -2002,7 +2010,6 @@ class sspmod_clave_SPlib
                   . '</root>';
                 $rootObj = $this->parseXML($xml);
 
-                //Add AttributeStatus to each assertion attribute
                 $assertionObj = $rootObj->children(self::NS_SAML2)->Assertion;
                 foreach ($assertionObj->AttributeStatement->Attribute as $attribute) {
                     $attribute->addAttribute('stork:AttributeStatus', 'Available', self::NS_STORK);
@@ -2010,7 +2017,6 @@ class sspmod_clave_SPlib
                 $assertion = $assertionObj->saveXML();
             }
         } else {
-            //Default values for optional inputs
             $NameID = '';
             $nameQualifier = '';
             $clientAddress = '';
@@ -2018,7 +2024,6 @@ class sspmod_clave_SPlib
             $recipient = '';
             $audienceRestriction = '';
 
-            //Default values for other inputs
             $id = self::generateID();
             $IssueInstant = self::generateTimestamp($now);
             $NotBefore = $IssueInstant;
@@ -2028,13 +2033,11 @@ class sspmod_clave_SPlib
             $AuthnContextClassRef = self::LOA_LOW;
             $NameIDFormat = self::NAMEID_FORMAT_UNSPECIFIED;
 
-            //Check mandatory inputs
             if (! isset($assertionData['Issuer'])) {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Issuer not defined on assertion input.');
             }
             $Issuer = $assertionData['Issuer'];
 
-            //Override defaults with the received values if any
             if (isset($assertionData['ID'])) {
                 $id = $assertionData['ID'];
             }
@@ -2063,7 +2066,6 @@ class sspmod_clave_SPlib
                 $NameIDFormat = $assertionData['NameIDFormat'];
             }
 
-            //Build the optional parts of the assertion, if inputs are available
             if (isset($assertionData['NameID'])) {
                 $NameID = $assertionData['NameID'];
             }
@@ -2084,30 +2086,25 @@ class sspmod_clave_SPlib
                 $audienceRestriction = '<saml2:AudienceRestriction>'
                   . '            <saml2:Audience>' . htmlspecialchars(
                       $assertionData['Audience']
-                  ) . '</saml2:Audience>' //EntityID of the AuthnReq issuer
+                  ) . '</saml2:Audience>'
                   . '        </saml2:AudienceRestriction>';
             }
 
             $subject = '';
             if ($NameID !== '') {
                 $subject = '<saml2:Subject>'
-                  . '        <saml2:NameID Format="' . htmlspecialchars(
-                      $NameIDFormat
-                  ) . '" ' //persistent, transient, unspecified
-                  . '               ' . $nameQualifier . '>' . htmlspecialchars(
-                      $NameID
-                  ) . '</saml2:NameID>' //namequalifier: the domain of the idp, nameid: the value of the personIdentifier attribute
+                  . '        <saml2:NameID Format="' . htmlspecialchars($NameIDFormat) . '" '
+                  . '               ' . $nameQualifier . '>' . htmlspecialchars($NameID) . '</saml2:NameID>'
                   . '        <saml2:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer">'
                   . '           <saml2:SubjectConfirmationData '
                   . '               ' . $clientAddress
-                  . '               ' . $inResponseTo        //tokenID of the AuthnReq that we are responding to
-                  . '               NotOnOrAfter="' . htmlspecialchars($NotOnOrAfter) . '" '  //now+5min
-                  . '               ' . $recipient . '/>'      //EntityID of the AuthnReq issuer
+                  . '               ' . $inResponseTo
+                  . '               NotOnOrAfter="' . htmlspecialchars($NotOnOrAfter) . '" '
+                  . '               ' . $recipient . '/>'
                   . '        </saml2:SubjectConfirmation>'
                   . '    </saml2:Subject>';
             }
 
-            //Now we build the attribute statement based on the received attribute list for this assertion
             $attribs = '';
             foreach ($assertionData['attributes'] as $attr) {
                 $values = '';
@@ -2120,8 +2117,6 @@ class sspmod_clave_SPlib
                       // more than one value, SAML2 says all must have
                       // the same type, so do it on the attribute
                       // section, not per value).
-
-                      //.'        xsi:type="eidas-natural:PersonIdentifierType"'
                       . '>'
                       . htmlspecialchars($val)
                       . '    </saml2:AttributeValue>';
@@ -2142,25 +2137,24 @@ class sspmod_clave_SPlib
                   . '</saml2:AttributeStatement>';
             }
 
-            //Finally, assemble the assertion
             $assertion = '<saml2:Assertion '
-              . 'ID="' . htmlspecialchars($id) . '" ' //Random UUID for the assertion
-              . 'IssueInstant="' . htmlspecialchars($IssueInstant) . '" ' //now
+              . 'ID="' . htmlspecialchars($id) . '" '
+              . 'IssueInstant="' . htmlspecialchars($IssueInstant) . '" '
               . 'Version="2.0">'
               . '    <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">' . htmlspecialchars(
                   $Issuer
-              ) . '</saml2:Issuer>' //Entity ID of IDP
+              ) . '</saml2:Issuer>'
               . '    ' . $subject
               . '    <saml2:Conditions '
-              . '        NotBefore="' . htmlspecialchars($NotBefore) . '" '  //now
-              . '        NotOnOrAfter="' . htmlspecialchars($NotOnOrAfter) . '">' //now+5min
+              . '        NotBefore="' . htmlspecialchars($NotBefore) . '" '
+              . '        NotOnOrAfter="' . htmlspecialchars($NotOnOrAfter) . '">'
               . '        ' . $audienceRestriction
               . '    </saml2:Conditions>'
-              . '    <saml2:AuthnStatement AuthnInstant="' . htmlspecialchars($AuthnInstant) . '">' //now
+              . '    <saml2:AuthnStatement AuthnInstant="' . htmlspecialchars($AuthnInstant) . '">'
               . '        <saml2:AuthnContext>'
               . '            <saml2:AuthnContextClassRef>' . htmlspecialchars(
                   $AuthnContextClassRef
-              ) . '</saml2:AuthnContextClassRef>' //LoA
+              ) . '</saml2:AuthnContextClassRef>'
               . '            <saml2:AuthnContextDecl/>'
               . '        </saml2:AuthnContext>'
               . '    </saml2:AuthnStatement>'
@@ -2171,23 +2165,16 @@ class sspmod_clave_SPlib
         return $assertion;
     }
 
-    // Status: status of the response, either raw (XML
-    // string) or to be built (array in the shape of what we return when
-    // parsing a response)
-    //
-    // Assertions: array of assertions for the response, either raw (XML
-    // string) or to be built (array in the shape of what we return when
-    // parsing a response)
-    //
-    // rawStatus: true if status parameter
-    // contains an xml string or false if it contains an array
-    //
-    // rawAssertions: true if assertions array
-    // contains xml strings or false if it contains arrays
-    //
-    // storkize: true if the assertion must be altered (thus breaking
-    // the possibly existing signature) to include the stork extension
-    // for available attributes
+    /**
+     * @param $status: status of the response, either raw (XML
+     * string) or to be built (array in the shape of what we return when
+     * parsing a response)
+     * @param $assertions: array of assertions for the response, either raw (XML
+     * string) or to be built (array in the shape of what we return when
+     * parsing a response)
+     * @return false|string
+     * @throws Exception
+     */
     public function generateStorkResponse(
         $status,
         $assertions,
@@ -2209,7 +2196,6 @@ class sspmod_clave_SPlib
         // authnStatemet:
         // attributes:
 
-        //Build the response with the params
         $storkNamespaces = '';
         if ($this->mode === 0 || $storkize === true) { //eIDAS  // TODO check
             $storkNamespaces =
@@ -2223,7 +2209,6 @@ class sspmod_clave_SPlib
                           . 'xmlns:eidas-natural="' . self::NS_EIDASATT . '" ';
         }
 
-        //Header of the SAML Response
         $RootTagOpen = '<?xml version="1.0" encoding="UTF-8"?>'
           . '<saml2p:Response '
           . 'xmlns:saml2p="' . self::NS_SAML2P . '" '
@@ -2240,7 +2225,6 @@ class sspmod_clave_SPlib
           . 'IssueInstant="' . self::generateTimestamp() . '" '
           . 'Version="2.0">';
 
-        //Issuer
         self::debug('Setting response issuer.');
         $Issuer = '<saml2:Issuer '
           . 'Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">'
@@ -2262,91 +2246,70 @@ class sspmod_clave_SPlib
           . $assertionList
           . '</saml2p:Response>';
 
-        //If enabled, cipher the assertions with the recipient key
         if ($this->doCipher === true) {
             self::info('Ciphering the response assertions...');
             $samlResponse = $this->encryptAssertions($samlResponse);
         }
 
-        //Sign the response
         $samlResponse = $this->calculateXMLDsig($samlResponse);
 
         return $samlResponse;
     }
 
-    // Gets the issuer entityId from a Saml token
-    // $samlToken: string xml saml token string
+    /**
+     * Gets the issuer entityId from a Saml token
+     *
+     * @param $samlToken: string xml saml token string
+     * @throws Exception
+     */
     public function getIssuer($samlToken): string
     {
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Empty saml token.');
         }
 
-        //Checks if it is a valid XML string.
         $samlTok = $this->parseXML($samlToken);
 
-        //We get the issuer
         return '' . $samlTok->children(self::NS_SAML2)->Issuer;
     }
 
-    // Gets the providerName from a Saml token
-    // $samlToken: string xml saml token string
+    /**
+     * Gets the providerName from a Saml token
+     *
+     * @param string $samlToken xml saml token string
+     * @throws Exception
+     */
     public function getProviderName($samlToken): string
     {
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Empty saml token.');
         }
 
-        //Checks if it is a valid XML string.
         $samlTok = $this->parseXML($samlToken);
 
-        //We get the providerName
         return '' . $samlTok['ProviderName'];
     }
 
     public static function getFriendlyName($attributeName, $mode = 0)
     {
-        if ($mode === 0) { //Stork
+        if ($mode === 0) {
             $prefixLen = strlen(self::$AttrNamePrefix);
             if (substr($attributeName, 0, $prefixLen) === self::$AttrNamePrefix) {
                 return substr($attributeName, $prefixLen);
             }
             return $attributeName;
         }
-
-        // Deleted: eIDAS full names suffixes don't always match the friendly names
-//      if($mode === 1){ //eIDAS
-//          $attrname = preg_replace("|.+/(.+?)$|i", "\\1", $attributeName);
-//          return $attrname;
-//      }
     }
 
     // *************** Stork Single Logout *******************  // TODO once eIDAS-clave3.0 is deployed, see if there's SSO and adapt
 
-    // Stork single logout has some differences with the standard saml logout:
-
-    //Only HTTP-POST binding, and always signed
-
-    // As no NameID is used to keep session info, nameid type is
-    // unspecified and content is the ProviderName of the logout
-    // requesting SP (the value that is used on the authnReq to match
-    // the cert on their trust store)
-
-    // POST param is not the standard "SAMLRequest". Instead you MUST
-    // use "samlRequestLogout"
-
-    //In a similar fashion, the repsonse must not be expected at
-    //"SAMLResponse" but at "samlResponseLogout"
-
-    //The content of the issuer field must not be the EntityID of the
-    //issuer. Instead, as STORK does not use Metadata transfer from SP
-    //to IdP, here the SingleLogout endpoint URL of the SP must be
-    //specified.
-
-    // $spID: the stork id of the SP
-    // $destination: endopint of the SLO service on the IdP
-    // $returnTo: endpoint at the SP where the SLO response is expected.
-    // $id: the id of the token (as it is usually used as a session token). If null will be auto-generated.
+    /**
+     * @param $spID: the stork id of the SP
+     * @param $destination: endopint of the SLO service on the IdP
+     * @param $returnTo: endpoint at the SP where the SLO response is expected.
+     * @return false|string
+     * @throws Exception
+     */
     public function generateSLORequest($spID, $destination, $returnTo, $id = null)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -2382,7 +2345,6 @@ class sspmod_clave_SPlib
           . $nameId
           . '</samlp:LogoutRequest>';
 
-        //Sign the request
         $sloReq = $this->calculateXMLDsig($sloReq);
 
         return $sloReq;
@@ -2392,22 +2354,17 @@ class sspmod_clave_SPlib
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
-        self::trace("Received LogoutResponse token:\n" . $samlToken);
-
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_SAMLRESP_EMPTY);
         }
 
         self::debug('Parsing SLOresponse.');
-        //Checks if it is a valid XML string.
         $samlResponse = $this->parseXML($samlToken);
 
-        //Validates the signature
         self::debug('Checking SLOresponse signature.');
         $this->validateXMLDSignature($samlToken);
 
         self::debug('Checking SLOresponse validity.');
-        //Root node must be 'LogoutResponse'
         if (strtolower($samlResponse->getName()) !== 'logoutresponse') {
             $this->fail(__FUNCTION__, self::ERR_UNEXP_ROOT_NODE);
         }
@@ -2421,7 +2378,6 @@ class sspmod_clave_SPlib
         self::trace('responseDestination: ' . $this->responseDestination);
         self::trace('responseIssuer:      ' . $this->responseIssuer);
 
-        //Check existance of mandatory elements/attributes
         if (! $this->inResponseTo || $this->inResponseTo === '') {
             $this->fail(__FUNCTION__, self::ERR_RESP_NO_REQ_ID);
         }
@@ -2433,7 +2389,6 @@ class sspmod_clave_SPlib
         }
 
         self::debug('Comparing with context values if set.');
-        // Compare with context values, if set
         if ($this->requestId) {
             self::debug('Comparing with requestID.');
             if (trim($this->requestId) !== trim($this->inResponseTo)) {
@@ -2463,37 +2418,29 @@ class sspmod_clave_SPlib
         }
 
         self::debug('Parsing SLOresponse status.');
-        //Get status info
         self::parseStatus($samlResponse);
 
         $this->SAMLResponseToken = $samlToken;
 
-        // Return whether logout has been successful or not.
         return self::isSuccess($aux);
     }
 
-    //Validates the received SamlLogoutReq towards the list of authorised issuers.
     public function validateLogoutRequest($logoutReqToken)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
-
-        self::trace("Received SamlLogoutRequest token:\n" . $logoutReqToken);
 
         if ($logoutReqToken === null || $logoutReqToken === '') {
             $this->fail(__FUNCTION__, self::ERR_SLOREQ_EMPTY);
         }
 
         self::debug('Parsing SLO request.');
-        //Checks if it is a valid XML string.
         $samlReq = $this->parseXML($logoutReqToken);
 
         self::debug('Checking SLO request validity.');
-        //Root node must be 'LogoutRequest'
         if (strtolower($samlReq->getName()) !== 'logoutrequest') {
             $this->fail(__FUNCTION__, self::ERR_UNEXP_ROOT_NODE);
         }
 
-        //Validates the signature against all trusted (no issuer here)
         self::debug('Checking slorequest signature against: ' . print_r($this->trustedIssuers, true));
         $verified = false;
         foreach ($this->trustedIssuers as $trustedIssuer) {
@@ -2517,7 +2464,9 @@ class sspmod_clave_SPlib
         $this->SLOReqToken = $logoutReqToken;
     }
 
-    //Returns an array with the important parameters of the received SLO request
+    /**
+     * @return array Returns an array with the important parameters of the received SLO request
+     */
     public function getSloRequestData(): array
     {
         $ret = [];
@@ -2563,28 +2512,36 @@ class sspmod_clave_SPlib
 
         self::debug('unsigned SLO response: ' . $sloResp);
 
-        //Sign the response
         $sloResp = $this->calculateXMLDsig($sloResp);
 
         return $sloResp;
     }
 
-    //Gets the nameID content from a SLO request.
+    /**
+     * Gets the nameID content from a SLO request.
+     *
+     * @param $samlToken
+     * @throws Exception
+     */
     public function getSloNameId($samlToken): string
     {
         if ($samlToken === null || $samlToken === '') {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Empty saml token.');
         }
 
-        //Checks if it is a valid XML string.
         $samlTok = $this->parseXML($samlToken);
 
-        //We get the issuer
         return '' . $samlTok->children(self::NS_SAML2)->NameID;
     }
 
-    // Set whether to, the key strength and certificate to cipher the
-    // assertions on the response.
+    /**
+     * Set whether to, the key strength and certificate to cipher the assertions on the response.
+     *
+     * @param $encryptCert
+     * @param bool $doCipher
+     * @param string $keyAlgorithm
+     * @throws Exception
+     */
     public function setCipherParams($encryptCert, $doCipher = true, $keyAlgorithm = self::AES256_CBC)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -2594,9 +2551,15 @@ class sspmod_clave_SPlib
         $this->keyAlgorithm = $keyAlgorithm;
     }
 
-    // Set whether to expect encrypted assertions and the private key to
-    // use to decrypt (should be the key linked to the certificate
-    // trusted by the IdP, the one used to sign the requests)
+    /**
+     * Set whether to expect encrypted assertions and the private key to use to decrypt (should be the key linked to the
+     * certificate trusted by the IdP, the one used to sign the requests)
+     *
+     * @param $decryptPrivateKey
+     * @param bool $doDecipher
+     * @param false $onlyEncrypted
+     * @throws Exception
+     */
     public function setDecipherParams($decryptPrivateKey, $doDecipher = true, $onlyEncrypted = false)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -2606,14 +2569,22 @@ class sspmod_clave_SPlib
         $this->onlyEncrypted = $onlyEncrypted;
     }
 
-    //Switch to eIDAS mode
+    /**
+     * Switch to eIDAS mode
+     */
     public function setEidasMode()
     {
         $this->mode = 1;
     }
 
-    //Set eIDAS specific parameters (LoA is inferred from the QAA, but
-    //can set here too)
+    /**
+     * Set eIDAS specific parameters (LoA is inferred from the QAA, but can set here too)
+     *
+     * @param string $spType
+     * @param string $nameIdFormat
+     * @param int $QAALevel
+     * @throws Exception
+     */
     public function setEidasRequestParams(
         $spType = self::EIDAS_SPTYPE_PUBLIC,
         $nameIdFormat = self::NAMEID_FORMAT_PERSISTENT,
@@ -2635,9 +2606,12 @@ class sspmod_clave_SPlib
         $this->QAALevel = $QAALevel;
     }
 
-    // TODO
-    //Will generate a metadata signed document that must be published at
-    //the URL stated in <issuer> of the SP
+    /**
+     * Will generate a metadata signed document that must be published at the URL stated in <issuer> of the SP
+     *
+     * @return false|string
+     * @throws Exception
+     */
     public function generateSPMetadata()
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -2684,23 +2658,25 @@ class sspmod_clave_SPlib
           . '  <md:ContactPerson contactType="technical"/>'
           . '</md:EntityDescriptor>';
 
-        //Sign the metadata
         self::info('Signing metadata');
         $metadata = $this->calculateXMLDsig($metadata, true);
 
         return $metadata;
     }
 
-    // TODO
-    //Will generate a metadata signed document that must be published at
-    //the URL stated in <issuer> of the IDP
+    /**
+     * Will generate a metadata signed document that must be published at the URL stated in <issuer> of the IDP
+     *
+     * @param string $SSOServiceURL
+     * @return false|string
+     * @throws Exception
+     */
     public function generateIdPMetadata($SSOServiceURL = '')
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
 
         self::info('Generating metadata for the IdP');
 
-        //List of supported attributes
         $supportedAttributes = '';
         foreach (self::$eIdasAttributes as $FriendlyName => $Name) {
             $supportedAttributes .= '<saml2:Attribute'
@@ -2771,7 +2747,6 @@ class sspmod_clave_SPlib
           . '  <md:ContactPerson contactType="technical"/>'
           . '</md:EntityDescriptor>';
 
-        //Sign the metadata (before extensions, but in this case, equals 'at the top')
         self::info('Signing IdP metadata');
         $metadata = $this->calculateXMLDsig($metadata, true);
 
@@ -2850,6 +2825,10 @@ class sspmod_clave_SPlib
     /**
      * Returns the xml document signed in enveloped mode
      *
+     * objDig->AddReference: force_uri to force the URI="" attribute on signedinfo (required due to java sec bug)
+     * overwrite to false avoid the ID overwrite. $doc->documentElement instead of $doc to target the root element, not
+     * the document id_name to set the name of the ID field of the signed node (default 'Id', we need 'ID').
+     *
      * @throws Exception
      */
     private function calculateXMLDsig($xml, $insertAhead = false)
@@ -2867,10 +2846,6 @@ class sspmod_clave_SPlib
         $objDSig->setCanonicalMethod($this->c14nMethod);
 
         self::debug('Adding reference to root node.');
-        // force_uri to force the URI="" attribute on signedinfo (required due to java sec bug)
-        // overwrite to false avoid the ID overwrite.
-        // $doc->documentElement instead of $doc to target the root element, not the document
-        // id_name to set the name of the ID field of the signed node (default 'Id', we need 'ID').
         $objDSig->addReference(
             $doc->documentElement,
             $this->digestMethod,
@@ -2896,20 +2871,17 @@ class sspmod_clave_SPlib
 
         if ($insertAhead === true) {
             $objDSig->appendSignature($doc->documentElement, true);
-        } //Inserts the signature ahead
-        else {
-            //On SAMLResponses, Signature above Status
+        } else {
             $statusnode = $doc->getElementsByTagName('Status')
                 ->item(0);
 
-            //On SAMLAuthnReqs, Signature above Extensions
             $extensions = $doc->getElementsByTagName('Extensions')
                 ->item(0);
 
-            $nextnode = $statusnode; //Inserts signature before the Status
-        if ($nextnode === null) { // If there is no status, then it is an AuthnReq
-            $nextnode = $extensions;
-        }  //Inserts signature before the Extensions  // SEGUIR
+            $nextnode = $statusnode;
+            if ($nextnode === null) {
+                $nextnode = $extensions;
+            }
 
             $objDSig->insertSignature($doc->documentElement, $nextnode);
         }
@@ -2947,7 +2919,12 @@ class sspmod_clave_SPlib
         }
     }
 
-    //Parse the status node on the SamlResponse
+    /**
+     * Parse the status node on the SamlResponse
+     *
+     * @param $samlResponse
+     * @throws Exception
+     */
     private function parseStatus($samlResponse)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -2979,8 +2956,13 @@ class sspmod_clave_SPlib
         $this->responseStatus = $statusInfo;
     }
 
-    //Parse and extract information from the assertion subject
-    // $subject:  SimpleXML object representing the Subject  // TODO see if namequalifier being absent is a problem
+    /**
+     * Parse and extract information from the assertion subject TODO see if namequalifier being absent is a problem
+     *
+     * @param $subject: SimpleXML object representing the Subject
+     * @return array|string[]|null
+     * @throws Exception
+     */
     private function parseAssertionSubject($subject): ?array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -2992,7 +2974,6 @@ class sspmod_clave_SPlib
         try {
             $subjectInfo = [
                 'NameID' => '' . $subject->NameID,
-                //In eIDAS, it will be the same as the PersonIdentifier attribute
                 'NameFormat' => '' . $subject->NameID->attributes()->Format,
                 'NameQualifier' => '' . $subject->NameID->attributes()->NameQualifier,
                 'Method' => '' . $subject->SubjectConfirmation->attributes()->Method,
@@ -3002,7 +2983,7 @@ class sspmod_clave_SPlib
                 'NotBefore' => '' . $subject->SubjectConfirmation->SubjectConfirmationData->attributes()->NotBefore,
                 'Recipient' => '' . $subject->SubjectConfirmation->SubjectConfirmationData->attributes()->Recipient,
             ];
-            if ($subject->NameID->attributes()->NameQualifier) { //In Stork, should be the DomainName of the C-PEPS
+            if ($subject->NameID->attributes()->NameQualifier) {
                 $subjectInfo['NameQualifier'] = '' . $subject->NameID->attributes()->NameQualifier;
             }
         } catch (Exception $e) {
@@ -3012,8 +2993,12 @@ class sspmod_clave_SPlib
         return $subjectInfo;
     }
 
-    //Parse and extract information from the assertions
-    // $assertions: SimpleXML object representing the SamlResponse Assertion nodes
+    /**
+     * Parse and extract information from the assertions
+     *
+     * @param $assertions: SimpleXML object representing the SamlResponse Assertion nodes
+     * @throws Exception
+     */
     private function parseAssertions($assertions)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3023,8 +3008,6 @@ class sspmod_clave_SPlib
 
         try {
             foreach ($assertions as $assertion) {
-
-        //AssertionID
                 $assertionID = '' . $assertion->attributes()->ID;
                 if ($assertionID === '') {
                     $this->fail(__FUNCTION__, self::ERR_NO_ASSERT_ID);
@@ -3037,23 +3020,19 @@ class sspmod_clave_SPlib
                 }
                 $assertionInfo = [];
 
-                //Basic assertion info
                 $assertionInfo['ID'] = $assertionID;
                 $assertionInfo['IssueInstant'] = '' . $assertion->attributes()->IssueInstant;
                 $assertionInfo['Issuer'] = '' . $assertion->Issuer;
 
                 self::debug('Parsing issuer.');
-                //Must have an Issuer
                 if ($assertionInfo['Issuer'] === '') {
                     $this->fail(__FUNCTION__, self::ERR_NO_ASSERT_ISSUER);
                 }
 
                 self::debug('Parsing subject.');
-                //Subject
                 $assertionInfo['Subject'] = self::parseAssertionSubject($assertion->Subject);
 
                 self::debug('Parsing conditions.');
-                //Conditions
                 $assertionInfo['Conditions'] = [
                     'NotBefore' => '' . $assertion->Conditions->attributes()->NotBefore,
                     'NotOnOrAfter' => '' . $assertion->Conditions->attributes()->NotOnOrAfter,
@@ -3065,7 +3044,6 @@ class sspmod_clave_SPlib
                 }
 
                 self::debug('Parsing Authentication Statement.');
-                //Authentication Statement
                 $assertionInfo['AuthnStatement'] = [
                     'AuthnInstant' => '' . $assertion->AuthnStatement->attributes()->AuthnInstant,
                     'SessionIndex' => '' . $assertion->AuthnStatement->attributes()->SessionIndex,
@@ -3075,7 +3053,6 @@ class sspmod_clave_SPlib
                     $assertionInfo['AuthnStatement']['LocalityDNSName'] = '' . $assertion->AuthnStatement->SubjectLocality->attributes()->DNSName;
                 }
 
-                //On eIDAS, this is the QAA of the authentication
                 if ($assertion->AuthnStatement->AuthnContext) {
                     if ($assertion->AuthnStatement->AuthnContext->AuthnContextClassRef) {
                         $assertionInfo['AuthnStatement']['AuthnContext'] = '' . $assertion->AuthnStatement->AuthnContext->AuthnContextClassRef;
@@ -3083,28 +3060,30 @@ class sspmod_clave_SPlib
                 }
 
                 self::debug('Parsing Attributes.');
-                //Get Attributes
                 $assertionInfo['Attributes'] = $this->parseAssertionAttributes(
                     $assertion->AttributeStatement
-                );  // TODO SEGUIR he quitado el self porque no es static!
+                );  // TODO SEGUIR I have removed the self because it is not static!
 
                 self::trace("Assertion SimpleXMLNode:\n" . print_r($assertion, true));
                 self::trace("Assertion storkAuth inner Struct:\n" . print_r($assertionInfo, true));
 
                 $this->responseAssertions[$assertionID] = $assertionInfo;
-            }//foreach
+            }
         } catch (Exception $e) {
             $this->fail(__FUNCTION__, self::ERR_BAD_ASSERTION, $e);
         }
     }
 
-    //function
-
-    //Parses the attribute statement of an assertion.
-    // $attributes: SimpleXML object representing the attribute statement
-    // $returnValueMeta: eIDAS has some xml attributes indicating the type/language, etc. of each value. If true, values will be arrays and not strings, containing the value and its metadata
-    //Will return an array with the assertion data. 0n eIDAS, attribute
-    //values have one more level of depth: access as ['value']['value]
+    /**
+     * Parses the attribute statement of an assertion. // $returnValueMeta: eIDAS has some xml attributes indicating the
+     * type/language, etc. of each value. If true, values will be arrays and not strings, containing the value and its
+     * metadata //Will return an array with the assertion data. 0n eIDAS, attribute //values have one more level of
+     * depth: access as ['value']['value]
+     *
+     * @param $attributeStatement: SimpleXML object representing the attribute statement
+     * @param false $returnValueMeta
+     * @throws Exception
+     */
     private function parseAssertionAttributes($attributeStatement, $returnValueMeta = false): array
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3115,16 +3094,15 @@ class sspmod_clave_SPlib
 
         $attrInfo = [];
         foreach ($attributeStatement->Attribute as $attr) {
-            if ($this->mode === 0) { //Stork
+            if ($this->mode === 0) {
                 $attrname = preg_replace('|.+/(.+?)$|i', '\\1', $attr->attributes()->Name);
                 $attrstatus = '' . $attr->attributes(self::NS_STORK, false)->AttributeStatus;
             }
-            if ($this->mode === 1) { //eIDAS
+            if ($this->mode === 1) {
                 $attrname = '' . $attr->attributes()->FriendlyName;
                 $attrstatus = null;
             }
 
-            //Status is optional. default value is available
             if (! $attrstatus) {
                 $attrstatus = self::ATST_AVAIL;
             }
@@ -3139,38 +3117,21 @@ class sspmod_clave_SPlib
                 'AttributeStatus' => $attrstatus,
             ];
 
-            //If status is available, we search for attributeValue
             if ($attrstatus === self::ATST_AVAIL) {
                 self::debug("Attribute ${attrname} available.");
 
                 $attribute['values'] = [];
                 foreach ($attr->AttributeValue as $attrval) {
-
-          //$attribute['values'][] = $attrval->asXML();
-
-                    if ($this->mode === 0) { //Stork
-
-                        //Looks for XML nodes in the STORK namespace inside attribute value
+                    if ($this->mode === 0) {
                         if (count($attrval->children(self::NS_STORK)) <= 0) {
                             self::trace("Attribute ${attrname} is simple.");
                             $attribute['values'][] = '' . $attrval;
                         } else {
                             self::trace("Attribute ${attrname} is complex.");
                             $complexAttr = $attrval->xpath('*');
-                            //We cat the XML for all children to return it
                             if ($complexAttr && count($complexAttr) > 0) {
-                                /*  $complexVal = "";
-                                    foreach($complexAttr as $subattr)
-                                    $complexVal .= $subattr->asXML();
-                                    $attribute['values'][] = $complexVal;*/
-
-                                //// !!!! -*-*
-
                                 $attrNode = new SimpleXMLElement('<stork:' . $attrname
-                        . ' xmlns:stork="' . self::NS_STORK . '"></stork:' . $attrname . '>'); //,NULL,false,'stork',true);
-
-                                //Declaring stork assertion namespace [xmlns:xmlns: is a common workaround to allow the ns declaration]
-                                //$attrNode->addAttribute('xmlns:xmlns:stork','urn:eu:stork:names:tc:STORK:1.0:assertion');
+                        . ' xmlns:stork="' . self::NS_STORK . '"></stork:' . $attrname . '>');
                                 foreach ($complexAttr as $subattr) {
                                     $attrNode->addChild($subattr->getName(), '' . $subattr);
                                 }
@@ -3179,35 +3140,31 @@ class sspmod_clave_SPlib
                         }
                     }
 
-                    //No complex attributes. Complex ones are in b64 (won't
-          //decode, this is SP's task, and dependent on the attribute
-          //semantics, defined by the type, defined on a profile).
-          //Also, now values is an array pof arrays, and not of
-          //strings
-          if ($this->mode === 1) { //eIDAS
+                    if ($this->mode === 1) {
+                        if ($returnValueMeta === true) {
+                            $valueNode = [
+                                // TODO  eye: check when you can do real tests. the prefix could change if there are multiple namespaces and would require searching for all of them or passing the namespace as is.
+                                'value' => '' . $attrval,
+                                'type' => '' . $attrval->attributes('xsi', true)->type,
+                            ];
 
-              if ($returnValueMeta === true) {
-                  $valueNode = [
-                      // TODO  ojo: revisar cuando pueda hacer pruebas reales. el prefijo podría cambiar si hay varios namespaces  y requeriría buscarlos todos o pasar el namespace tal cual.
-                      'value' => '' . $attrval,
-                      'type' => '' . $attrval->attributes('xsi', true)->type,
-                  ];
+                            if ($attrval->attributes()->languageID) {
+                                $valueNode['languageID'] = '' . $attrval->attributes()->languageID;
+                            }
 
-                  if ($attrval->attributes()->languageID) {
-                      $valueNode['languageID'] = '' . $attrval->attributes()->languageID;
-                  }
+                            if ($attrval->attributes(self::NS_EIDASATT)->Transliterated) {
+                                $valueNode['Transliterated'] = '' . $attrval->attributes(
+                                    self::NS_EIDASATT
+                                )->Transliterated;
+                            }
+                        } else {
+                            $valueNode = '' . $attrval;
+                        }
 
-                  if ($attrval->attributes(self::NS_EIDASATT)->Transliterated) {
-                      $valueNode['Transliterated'] = '' . $attrval->attributes(self::NS_EIDASATT)->Transliterated;
-                  }
-              } else {
-                  $valueNode = '' . $attrval;
-              }
-
-              $attribute['values'][] = $valueNode;
-          }
+                        $attribute['values'][] = $valueNode;
+                    }
                 }
-            } else { // Not available or withheld
+            } else {
                 $attribute['values'] = null;
             }
 
@@ -3217,8 +3174,14 @@ class sspmod_clave_SPlib
         return $attrInfo;
     }
 
-    //Verifies the enveloped signature on an XML document, with the embedded
-    //certificate or optionally an externally provided certificate.
+    /**
+     * Verifies the enveloped signature on an XML document, with the embedded certificate or optionally an externally
+     * provided certificate.
+     *
+     * @param $data
+     * @param string $externalKey
+     * @throws Exception
+     */
     private function verifySignature($data, $externalKey = ''): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3233,23 +3196,16 @@ class sspmod_clave_SPlib
         $objXMLSecDSig = new XMLSecurityDSig();
 
         self::debug('Searching Signature node.');
-        //Shouldn't use this one because it locates all Signature nodes
-        //and will keep the first one regardles of which it is, and we
-        //need to ignore the Assertion signatures.
-        //$objDSig = $objXMLSecDSig->locateSignature($doc);
         $objDSig = null;
         if ($doc !== null && ($doc instanceof DOMDocument)) {
             $xpath = new DOMXPath($doc);
             $xpath->registerNamespace('ds', self::NS_XMLDSIG);
-            //This query allows to get only the first level Signature
-            //node, not the ones inside the Assertions.
             $query = '/*/ds:Signature';
             $nodeset = $xpath->query($query, $doc);
             $objDSig = $nodeset->item(0);
             if ($objDSig) {
                 self::trace('Signature node found:' . $doc->saveXML($objDSig));
             }
-            //We must reference the signature node on the class
             $objXMLSecDSig->sigNode = $objDSig;
         }
 
@@ -3261,9 +3217,6 @@ class sspmod_clave_SPlib
         $objXMLSecDSig->canonicalizeSignedInfo();
 
         $objXMLSecDSig->idKeys = self::$referenceIds;
-        //To declare Namespaces and prefixes for the XPath queries
-        //$objXMLSecDSig->idNS = array('ds'=>'http://www.w3.org/2000/09/xmldsig#',
-        //                             'saml2p'=>'urn:oasis:names:tc:SAML:2.0:protocol');
         try {
             self::debug('Validating root node reference.');
             $retVal = $objXMLSecDSig->validateReference();
@@ -3275,15 +3228,12 @@ class sspmod_clave_SPlib
         }
 
         self::debug('Searching Keyinfo.');
-        //Locates the key info on the signature node and sets the
-        //sig-method and the key type (public)
         $objKey = $objXMLSecDSig->locateKey();
         if (! $objKey) {
             $this->fail(__FUNCTION__, self::ERR_MISSING_SIG_INFO);
         }
 
         self::debug('Loading embedded verification public key.');
-        //Getting the keyinfo node (which will contain the signing certificate/key)
         $objKeyInfo = null;
         try {
             $objKeyInfo = XMLSecEnc::staticLocateKeyInfo($objKey, $objDSig);
@@ -3291,8 +3241,6 @@ class sspmod_clave_SPlib
             self::warn('No embedded key found. No keyinfo node.');
         }
 
-        //Check if signing algorithm is supported (DUE TO A BUG DETECTED
-        //BY SSPHP, ONLY THESE ARE DEEMED SAFE)
         $algorithm = $objKey->getAlgorith();
         if (! in_array($algorithm, [
             XMLSecurityKey::RSA_1_5,
@@ -3304,7 +3252,6 @@ class sspmod_clave_SPlib
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Unsupported signing algorithm.');
         }
 
-        //Build the key object for the external validation key
         $extKey = new XMLSecurityKey($algorithm, [
             'type' => 'public',
         ]);
@@ -3313,18 +3260,12 @@ class sspmod_clave_SPlib
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Missing external validation key.');
         }
 
-        //Load the validation key
         self::debug('Loading external verification public key material.');
-        self::trace("KEY: \n" . $externalKey);
         $extKey->loadKey($externalKey);
 
-        //We store the certificate that came with the request, for
-        //debugging purposes
         self::trace('Storing embedded key.');
         $this->signingCert = $objKeyInfo->getX509Certificate();
-        self::trace("KEY: \n" . $this->signingCert);
 
-        //Try to validate with the external key
         if ($extKey->key === null) {
             $this->fail(__FUNCTION__, self::ERR_BAD_PUBKEY_CERT);
             return false;
@@ -3342,7 +3283,12 @@ class sspmod_clave_SPlib
         return $verified;
     }
 
-    //Validate SamlResponseToken against all trusted issuer certificates.
+    /**
+     * Validate SamlResponseToken against all trusted issuer certificates.
+     *
+     * @param $xml
+     * @throws Exception
+     */
     private function validateXMLDSignature($xml): bool
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3351,27 +3297,9 @@ class sspmod_clave_SPlib
             $this->fail(__FUNCTION__, self::ERR_SAMLRESP_EMPTY);
         }
 
-        //Test self validation.
-        /*
-        if(count($this->trustedCerts) <=0){
-          self::debug("self validation.");
-          if(!$this->verifySignature($xml)){
-            self::debug("Self validation failure.");
-            $this->fail(__FUNCTION__, self::ERR_SIG_VERIF_FAIL,$this->signingCert);
-          }
-          self::debug("Self validation success.");
-          return True;
-        }
-        */
-
-        //Check all trusted issuer certificates.
-        //If response has embedded key, always does a signature
-        //verification and if failure, its result has priority over
-        //external verification
         self::debug('Starting external validation [].');
         $validated = false;
         foreach ($this->trustedCerts as $cert) {
-            self::debug("Validating with external cert:\n" . $cert);
             if ($this->verifySignature($xml, $cert)) {
                 self::debug('Validated.');
                 $validated = true;
@@ -3426,8 +3354,13 @@ class sspmod_clave_SPlib
         return $idpList;
     }
 
-    //Receives the plain unsigned response xml and the certificate of
-    //the recipient SP
+    /**
+     * Receives the plain unsigned response xml and the certificate of the recipient SP
+     *
+     * @param $samlToken
+     * @return false|string
+     * @throws Exception
+     */
     private function encryptAssertions($samlToken)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3440,138 +3373,57 @@ class sspmod_clave_SPlib
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Recipient certificate for ciphering not set or empty.');
         }
 
-        self::debug('Plain input token to cipher: ' . $samlToken);
-        self::debug('Recipient certificate to cipher: ' . $this->encryptCert);
-
-        //Parse the input saml token XML
         $doc = new DOMDocument();
         if (! $doc->loadXML($samlToken)) {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Bad XML in input saml token.');
         }
 
-        //Get the recipient public key from the certificate for encryption
         $key = new XMLSecurityKey(XMLSecurityKey::RSA_OAEP_MGF1P, [
             'type' => 'public',
         ]);
         $key->loadKey($this->encryptCert);
 
-        //Find any plain assertions in the Response and encrypt them
         $assertions = $doc->getElementsByTagName('Assertion');
         self::debug('Found assertions to cipher: ' . $assertions->length);
         while ($assertions->length > 0) {
-
-          //Grab the first assertion
             $assertion = $assertions->item(0);
 
-            //Create the encoding context
             $enc = new XMLSecEnc();
             $enc->setNode($assertion);
             $enc->type = XMLSecEnc::Element;
 
-            //Generate AES symmetric key
             self::debug('Generating symmetric key (' . $this->keyAlgorithm . ')...');
             $symmetricKey = new XMLSecurityKey($this->keyAlgorithm);
             $symmetricKey->generateSessionKey();
 
-            //Encrypt symmetric key with recipient public key
             self::debug('Encrypting symmetric key with public key...');
             $enc->encryptKey($key, $symmetricKey);
 
-            //Encrypt the Assertion with the symmetric key (will generate an
-            //independent document)
             self::debug('Encrypting assertion with symmetric key...');
             $encData = $enc->encryptNode($symmetricKey, false);
 
-            /*
-            echo "LLEGA";
-            //We need to attach the certificate used to encrypt to the token
-            //(due to the reference SP eIDAS implementation failing if the
-            //certificate used to encrypt is not attached)
-            $encryptedKeyKeyInfoNode  = $doc->createElement('ds:KeyInfo');
-            $encryptedKeyX509DataNode = $doc->createElement('ds:X509Data');
-            $encryptedKeyX509CertNode = $doc->createElement('ds:X509Certificate');
-            $encryptedKeyX509CertNode->appendChild($doc->createTextNode($this->encryptCert));
-            $encryptedKeyX509DataNode->appendChild($encryptedKeyX509CertNode);
-            $encryptedKeyKeyInfoNode->appendChild($encryptedKeyX509DataNode);
-
-            //Add the certificate used to encrypt the cipher key to the keyinfo node          // TODO eIDAS
-            $encryptedKeyNode = $encData->getElementsByTagName('EncryptedKey');
-            $cipherDataNode = $encData->getElementsByTagName('CipherData');
-
-            $cipherDataNode->parentNode->insertBefore($encryptedKeyKeyInfoNode,$cipherDataNode);
-
-            echo "PASA";
-
-
-    #Decrypt the assertion
-            $assertion = $this->decryptXMLNode($encData,$objKey);  // TODO parece que estoy desencriptando con la llave privada rsa
-            if ($assertion === NULL)
-                $this->fail(__FUNCTION__, self::ERR_GENERIC,"Decrypted content is null.");
-
-            #To parse the resulting xml, we need to add all the possible namespaces
-            $xml = '<root '
-                .'xmlns:saml2p="'.self::NS_SAML2P.'" '
-                .'xmlns:ds="'.self::NS_XMLDSIG.'" '
-                .'xmlns:saml2="'.self::NS_SAML2.'" '
-                .'xmlns:stork="'.self::NS_STORK.'" '
-                .'xmlns:storkp="'.self::NS_STORKP.'" '
-                .'xmlns:xsi="'.self::NS_XSI.'" >'
-                .$assertion
-                .'</root>';
-
-            #Parse the decrypted assertion to check its integrity
-            self::debug("Parsing decrypted assertion...");
-            $newDoc = new DOMDocument();
-            if (!$newDoc->loadXML($xml))
-                $this->fail(__FUNCTION__, self::ERR_GENERIC,"Error parsing decrypted XML. Possibly Bad symmetric key.");
-
-            #Check if the decrypted content was empty
-            $decryptedElement = $newDoc->firstChild->firstChild;
-            if ($decryptedElement === NULL)
-                $this->fail(__FUNCTION__, self::ERR_GENERIC,"Decrypted content is empty.");
-
-            #Check if the decrypted content is a valid DOM Node
-            if (!($decryptedElement instanceof \DOMElement))
-                $this->fail(__FUNCTION__, self::ERR_GENERIC,"Decrypted element is not a DOMElement.");
-
-            //Parse the decrypted node to be attached to the document
-            self::debug("Replacing encrypted assertion with plain one...");
-            $f = $doc->createDocumentFragment();
-            $f->appendXML($xml);
-
-            //Replace the encrypted assertion with the plain one (warning!
-            //this will void the saml token signature)
-            $encAssertion->parentNode->replaceChild($f->firstChild->firstChild, $encAssertion);
-
-            */
-
-            //Transfer the node tree to the document space of the original
-            //document
             $encData2 = $doc->importNode($encData, true);
 
-            //Create the container for the encrypted data
             $encAssertion = $doc->createElement('saml2:EncryptedAssertion');
 
-            //Append the encrypted data to the container
             $encAssertion->appendChild($encData2);
 
-            //Replace the plain assertion with the encrypted one
             self::debug('Replacing plain assertion with encrypted one...');
             $assertion->parentNode->replaceChild($encAssertion, $assertion);
 
-            //Search for any remaining plain assertions
             $assertions = $doc->getElementsByTagName('Assertion');
         }
 
-        self::debug('Response with encrypted assertions:' . $doc->saveXML());
-
-        //Return the xml response
         return $doc->saveXML();
     }
 
-    //Receives a DomElement object and a xmlsec key and returns a
-    //decrypted DomElement. Doesn't perform any checks on the decrypted
-    //data. If symmetric key was badly decrypted, it will return trash.
+    /**
+     * Receives a DomElement object and a xmlsec key and returns a decrypted DomElement. Doesn't perform any checks on
+     * the decrypted data. If symmetric key was badly decrypted, it will return trash.
+     *
+     * @return DOMDocument|DOMElement|string
+     * @throws Exception
+     */
     private function decryptXMLNode(DOMElement $encryptedData, XMLSecurityKey $decryptKey)
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3580,45 +3432,31 @@ class sspmod_clave_SPlib
         $enc->setNode($encryptedData);
         $enc->type = $encryptedData->getAttribute('Type');
 
-        self::debug('*******************' . print_r($encryptedData, true));
-
         self::debug('Locating encrypted symmetric key...');
         $symmetricKey = $enc->locateKey($encryptedData);
         if (! $symmetricKey) {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Could not locate key algorithm in encrypted data.');
         }
 
-        self::debug('*******************' . print_r($symmetricKey, true));
-
-        //Find the ciphering algorithm info (returns a XMLSecurityKey instance with the symmetric key)
         self::debug('Locating ciphering algorithm...');
         $symmetricKeyInfo = $enc->locateKeyInfo($symmetricKey);
         if (! $symmetricKeyInfo) {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Could not locate <dsig:KeyInfo> for the encrypted key.');
         }
 
-        self::debug('*******************' . print_r($symmetricKeyInfo, true));
-
-        //Key will always be encrypted with the recipient public key
         if (! $symmetricKeyInfo->isEncrypted) {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Symmetric key not encrypted. Must be encrypted.');
         }
 
-        //Decrypt key will be RSA, so it doesn't matter the specific key
-        //type. We always set it as a RSA_OAEP_MGF1P
         $decryptKeyAlgo = $decryptKey->getAlgorith();
         $symKeyInfoAlgo = $symmetricKeyInfo->getAlgorith();
         if ($symKeyInfoAlgo === XMLSecurityKey::RSA_OAEP_MGF1P
       && ($decryptKeyAlgo === XMLSecurityKey::RSA_1_5
       || $decryptKeyAlgo === XMLSecurityKey::RSA_SHA1
       || $decryptKeyAlgo === XMLSecurityKey::RSA_SHA512)) {
-            // Any RSA private key can be used on RSA_OAEP_MGF1P
             $decryptKeyAlgo = XMLSecurityKey::RSA_OAEP_MGF1P;
         }
-        self::debug("Decrypt key algorithm: ${decryptKeyAlgo}.");
-        self::debug("Symmetric key algorithm: ${symKeyInfoAlgo}.");
 
-        //Check that decrypt and encrypt key formats match
         if ($decryptKeyAlgo !== $symKeyInfoAlgo) {
             $this->fail(
                 __FUNCTION__,
@@ -3628,12 +3466,10 @@ class sspmod_clave_SPlib
         }
 
         $encKey = $symmetricKeyInfo->encryptedCtx;
-        //Load the RSA key to the security object
         self::debug('Loading RSA key to the encrypted key context...');
         $symmetricKeyInfo->key = $decryptKey->key;
 
         $keySize = $symmetricKey->getSymmetricKeySize();
-        self::debug("Symmetric key size: ${keySize}.");
         if ($keySize === null) {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, "Can't guess key size to check proper decryption");
         }
@@ -3653,9 +3489,6 @@ class sspmod_clave_SPlib
         } catch (Exception $e) {
             self::debug('Failed to decrypt symmetric key');
 
-            //Key oracle attack protection: Generate a correctly padded key
-            //It is a random one and will fail, but will fail securely
-            //Make sure that the key has the correct length
             $encryptedKey = $encKey->getCipherValue();
             $pkey = openssl_pkey_get_details($symmetricKeyInfo->key);
             $pkey = sha1(serialize($pkey), true);
@@ -3667,28 +3500,21 @@ class sspmod_clave_SPlib
             }
         }
 
-        self::debug('Decrypted symmetric key (raw): ' . bin2hex("${key}"));
-
-        //Get the decrypted key back to its place
-        //$symmetricKey->loadkey($key);
         $symmetricKey->key = $key;
 
-        self::debug('Decrypted symmetric key (obj): ' . print_r($symmetricKey, true));
-        self::debug('Decrypted symmetric key (raw from obj): ' . bin2hex($symmetricKey->key));
-        self::debug('Data to decrypt: ' . base64_encode($enc->getCipherValue()));
-
-        //Decrypt the assertion
         self::debug('Decrypting data with symmetric key (if succeeded in decrypting it. Rubbish otherwise)');
         $decrypted = $enc->decryptNode($symmetricKey, false);
-
-        self::debug("Decrypted data: ${decrypted}");
 
         return $decrypted;
     }
 
-    //Receives a saml response token and returns a simpleXML object of
-    //the response but replacing any encryptedAssertion by its decrypted
-    //counterpart.
+    /**
+     * Receives a saml response token and returns a simpleXML object of the response but replacing any
+     * encryptedAssertion by its decrypted counterpart.
+     *
+     * @param $samlToken
+     * @throws Exception
+     */
     private function decryptAssertions($samlToken): SimpleXMLElement
     {
         self::debug(__CLASS__ . '.' . __FUNCTION__ . '()');
@@ -3701,10 +3527,6 @@ class sspmod_clave_SPlib
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Private key for deciphering not set or empty.');
         }
 
-        self::debug('Input token to decipher: ' . $samlToken);
-        self::debug('Private key to decipher: ' . $this->decryptPrivateKey);
-
-        //Load the private key to decipher
         self::debug(
             'Loading decryption key...'
         );  // TODO get the key type from the  <ds:KeyInfo><xenc:EncryptedKey><xenc:EncryptionMethod> --->  as it is my key, I know I use this algorithm
@@ -3713,40 +3535,31 @@ class sspmod_clave_SPlib
         ]);
         $objKey->loadKey($this->decryptPrivateKey, false);
 
-        #Parse the input saml token XML
         $doc = new DOMDocument();
         if (! $doc->loadXML($samlToken)) {
             $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Bad XML in input saml token.');
         }
 
-        //If strictly only encrypted assertions are accepted, search
-        //and delete all plain assertions
         if ($this->onlyEncrypted === true) {
             self::debug('Searching for plain assertions to delete...');
             $assertions = $doc->getElementsByTagName('Assertion');
             self::debug('Found plain assertions: ' . $assertions->length);
             while ($assertions->length > 0) {
-
-              //Grab the first assertion
                 $assertion = $assertions->item(0);
 
-                //Remove it
                 self::debug('Removing plain assertion...');
                 $assertion->parentNode->removeChild($assertion);
 
-                //Search for any remaining plain assertions
                 $assertions = $doc->getElementsByTagName('Assertion');
             }
         }
 
-        //Find any encrypted assertions in the Response and decrypt them
         $assertions = $doc->getElementsByTagName('EncryptedAssertion');
         self::debug('Found assertions to decipher: ' . $assertions->length);
         while ($assertions->length > 0) {
             self::debug('Decrypting assertion...');
             $encAssertion = $assertions->item(0);
 
-            #Search for the encrypted data node inside the encrypted assertion node
             $encData = $encAssertion->getElementsByTagName('EncryptedData');
             if (is_array($encData)) {
                 $encData = $encData[0];
@@ -3758,16 +3571,14 @@ class sspmod_clave_SPlib
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'No encrypted data node found.');
             }
 
-            #Decrypt the assertion
             $assertion = $this->decryptXMLNode(
                 $encData,
                 $objKey
-            );  // TODO parece que estoy desencriptando con la llave privada rsa
+            );  // TODO looks like i'm decrypting with rsa private key
             if ($assertion === null) {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Decrypted content is null.');
             }
 
-            #To parse the resulting xml, we need to add all the possible namespaces
             $xml = '<root '
               . 'xmlns:saml2p="' . self::NS_SAML2P . '" '
               . 'xmlns:ds="' . self::NS_XMLDSIG . '" '
@@ -3778,7 +3589,6 @@ class sspmod_clave_SPlib
               . $assertion
               . '</root>';
 
-            #Parse the decrypted assertion to check its integrity
             self::debug('Parsing decrypted assertion...');
             $newDoc = new DOMDocument();
             if (! $newDoc->loadXML($xml)) {
@@ -3789,72 +3599,32 @@ class sspmod_clave_SPlib
                 );
             }
 
-            #Check if the decrypted content was empty
             $decryptedElement = $newDoc->firstChild->firstChild;
             if ($decryptedElement === null) {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Decrypted content is empty.');
             }
 
-            #Check if the decrypted content is a valid DOM Node
             if (! ($decryptedElement instanceof DOMElement)) {
                 $this->fail(__FUNCTION__, self::ERR_GENERIC, 'Decrypted element is not a DOMElement.');
             }
 
-            //Parse the decrypted node to be attached to the document
             self::debug('Replacing encrypted assertion with plain one...');
             $f = $doc->createDocumentFragment();
             $f->appendXML($xml);
 
-            //Replace the encrypted assertion with the plain one (warning!
-            //this will void the saml token signature)
             $encAssertion->parentNode->replaceChild($f->firstChild->firstChild, $encAssertion);
 
-            //Search for any remaining encrypted assertions
             $assertions = $doc->getElementsByTagName('EncryptedAssertion');
         }
 
-        self::debug('Response with plain assertions:' . $doc->saveXML());
-
-        //Convert to simpleXML object
         return $this->parseXML($doc->saveXML());
     }
-} // Class
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Wrapper class to simplify integration of clave1.0 (Stork) authentication
-
+/**
+ * Class claveAuth Wrapper class to simplify integration of clave1.0 (Stork) authentication
+ */
 class claveAuth
 {
     public const LOG_TRACE = 0;
@@ -3896,19 +3666,14 @@ class claveAuth
     {
         $this->conf = self::getConfigFromFile($configFile);
 
-        $this->claveSP = new sspmod_clave_SPlib();
+        $this->claveSP = new SPlib();
 
         $this->claveSP->forceAuthn();
 
-        $this->claveSP->setSignatureKeyParams(
-            $this->conf['signCert'],
-            $this->conf['signKey'],
-            sspmod_clave_SPlib::RSA_SHA256
-        );
+        $this->claveSP->setSignatureKeyParams($this->conf['signCert'], $this->conf['signKey'], SPlib::RSA_SHA256);
 
-        $this->claveSP->setSignatureParams(sspmod_clave_SPlib::SHA256, sspmod_clave_SPlib::EXC_C14N);
+        $this->claveSP->setSignatureParams(SPlib::SHA256, SPlib::EXC_C14N);
 
-        //La URL de retorno es la misma que la actual, así que la calculamos
         $this->claveSP->setServiceProviderParams(
             $this->conf['SPname'],
             $this->conf['Issuer'],
@@ -3939,12 +3704,13 @@ class claveAuth
         $this->attributes = [];
     }
 
-    //Returns true if authn succeeded, false if failed, redirects if new authn
+    /**
+     * @return bool: Returns true if authn succeeded, false if failed, redirects if new authn
+     */
     public function authenticate(): bool
     {
         self::debug('**Entra en authenticate');
 
-        //If no response token on the request, then we must launch an authn process
         if (! array_key_exists('SAMLResponse', $_REQUEST)) {
             self::debug('**do_auth');
             $this->do_Authenticate();
@@ -3953,7 +3719,9 @@ class claveAuth
         return $this->handleResponse($_REQUEST['SAMLResponse']);
     }
 
-    //Transformamos los attrs para compatibilizarlos con el PoA
+    /**
+     * We transform the attrs to make them compatible with the PoA
+     */
     public function getAttributes(): array
     {
         self::debug('**attrs::' . print_r($this->attributes, true));
@@ -3965,7 +3733,6 @@ class claveAuth
 
         self::debug('**attrs2::' . print_r($ret, true));
 
-        //Aislar DNI
         $ret['eIdentifier'] = explode('/', $this->attributes['eIdentifier'][0])[2];
 
         self::debug('**attrs3::' . print_r($ret, true));
@@ -3973,11 +3740,11 @@ class claveAuth
         return $ret;
     }
 
-    //Returns true if logout succeeded, false if failed, redirects if new logout
+    /**
+     * Returns true if logout succeeded, false if failed, redirects if new logout
+     */
     public function logout(): bool
     {
-
-        //If no response token on the request, then we must launch an authn process
         if (! array_key_exists('samlResponseLogout', $_REQUEST)) {
             $this->do_Logout();
         }
@@ -4040,7 +3807,7 @@ class claveAuth
 
     private function do_Logout()
     {
-        $id = sspmod_clave_SPlib::generateID();
+        $id = SPlib::generateID();
 
         $req = $this->claveSP->generateSLORequest(
             $this->conf['Issuer'],
@@ -4062,7 +3829,7 @@ class claveAuth
     {
         $resp = base64_decode($response, true);
 
-        $claveSP = new sspmod_clave_SPlib();
+        $claveSP = new SPlib();
 
         $claveSP->addTrustedCert($this->conf['validateCert']);
 
@@ -4084,7 +3851,7 @@ class claveAuth
     {
         $resp = base64_decode($response, true);
 
-        $claveSP = new sspmod_clave_SPlib();
+        $claveSP = new SPlib();
 
         $claveSP->addTrustedCert($this->conf['validateCert']);
 
@@ -4109,7 +3876,6 @@ class claveAuth
     {
         $req = base64_encode($this->claveSP->generateStorkAuthRequest());
 
-        //For response verification, store in session or in config the following:
         session_start();
         $_SESSION['claveLib']['requestId'] = $this->claveSP->getRequestId();
         $_SESSION['claveLib']['returnPage'] = self::full_url($_SERVER);
@@ -4197,10 +3963,15 @@ class claveAuth
         exit(0);
     }
 
+    /**
+     * Don't use _once in file or the global variable might get unset.
+     *
+     * @param $file
+     * @throws Exception
+     */
     private static function getConfigFromFile($file): array
     {
         try {
-            //Don't use _once or the global variable might get unset.
             require($file);
         } catch (Exception $e) {
             throw new Exception('Clave config file ' . $file . ' not found.');
@@ -4234,15 +4005,3 @@ class claveAuth
         return self::url_origin($s, $use_forwarded_host) . $s['REQUEST_URI'];
     }
 }
-
-
-
-
-//Extract signature hash
-//cat saml.pem | openssl rsautl -certin -verify -raw -hexdump -in sig3 -asn1parse
-
-
-//Equivalent, but the second failsm if the prefx is different
-//$samlResponse->children(self::NS_SAML2,false)->Assert
-//$samlResponse->children('saml2',TRUE)->Assert
-//$nsPrefixes = $samlResponse->getNamespaces();

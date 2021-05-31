@@ -4,26 +4,23 @@
  * Logout acs endpoint (response handler) for clave authentication source SP
  */
 
-SimpleSAML\Logger::info('Call to Clave auth source logout-comeback');
+SimpleSAML\Logger::debug('Call to Clave auth source logout-comeback');
 
 
-// Get the Id of the authsource
 $sourceId = substr($_SERVER['PATH_INFO'], 1);
-$source = SimpleSAML\Auth\Source::getById($sourceId, 'sspmod_clave_Auth_Source_SP');
+$source = SimpleSAML\Auth\Source::getById($sourceId, 'SimpleSAML\Module\clave\Auth_Source_SP');
 
-//Get the metadata for the soliciting SP
 $spMetadata = $source->getMetadata();
 SimpleSAML\Logger::debug('Metadata on acs:' . print_r($spMetadata, true));
 
 
-//Hosted SP config
 $hostedSP = $spMetadata->getString('hostedSP', null);
 if ($hostedSP === null) {
     throw new SimpleSAML\Error\Exception(
         'No clave hosted SP configuration defined in clave auth source configuration.'
     );
 }
-$hostedSPmeta = sspmod_clave_Tools::getMetadataSet($hostedSP, 'clave-sp-hosted');
+$hostedSPmeta = SimpleSAML\Module\clave\Tools::getMetadataSet($hostedSP, 'clave-sp-hosted');
 SimpleSAML\Logger::debug('Clave SP hosted metadata: ' . print_r($hostedSPmeta, true));
 
 $spEntityId = $hostedSPmeta->getString('entityid', null);
@@ -39,7 +36,7 @@ SimpleSAML\Logger::debug('Received response: ' . $resp);
 
 
 
-$clave = new sspmod_clave_SPlib();
+$clave = new SimpleSAML\Module\clave\SPlib();
 
 
 $id = $clave->getInResponseToFromReq($resp);
@@ -62,9 +59,6 @@ $expectedIssuers = null;
 $keys = $remoteIdPMeta->getArray('keys', null);
 if ($keys !== null) {
     foreach ($keys as $key) {
-        //Here we should be selecting signature/encryption certs, but
-        //as the library uses the same ones for both purposes, we just
-        //ignore this check.
         if (! $key['X509Certificate'] || $key['X509Certificate'] === '') {
             continue;
         }
@@ -75,7 +69,6 @@ if ($keys !== null) {
 
 $certData = $remoteIdPMeta->getString('certData', null);
 if ($certData !== null) {
-    SimpleSAML\Logger::debug('Certificate in source (legacy parameter): ' . $certData);
     $clave->addTrustedCert($certData);
 }
 
@@ -85,19 +78,11 @@ if ($certData !== null) {
 
 $clave->setValidationContext($id, $state['clave:sp:slo:returnPage'], $expectedIssuers);
 
-//If logout failed, we warn, but keep on with the response (as the
-//status is transmitted back to the SP)
 if (! $clave->validateSLOResponse($resp)) {
     SimpleSAML\Logger::warning('Unsuccessful logout. Status was: ' . print_r($clave->getResponseStatus(), true));
-
-    //$errInfo = $clave->getResponseStatus();
-//new sspmod_saml_Error($errInfo['MainStatusCode'],
-//                      $errInfo['SecondaryStatusCode'],
-//                      $errInfo['StatusMessage'])
 }
 
 
-//Log for statistics: received LogoutResponse from remote clave IdP
 $statsData = [
     'spEntityID' => $spEntityId,
     'idpEntityID' => $clave->getRespIssuer(),
@@ -113,7 +98,3 @@ SimpleSAML\Stats::log('saml:idp:LogoutResponse:recv', $statsData);
 
 $state['saml:sp:LogoutStatus'] = $clave->getResponseStatus();
 SimpleSAML\Auth\Source::completeLogout($state);
-
-
-
-assert('FALSE');

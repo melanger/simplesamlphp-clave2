@@ -7,36 +7,31 @@
 
 
 
-//Read the Hosted IdP config
-$claveConfig = sspmod_clave_Tools::getMetadataSet('__DYNAMIC:1__', 'clave-idp-hosted');
+$claveConfig = SimpleSAML\Module\clave\Tools::getMetadataSet('__DYNAMIC:1__', 'clave-idp-hosted');
 SimpleSAML\Logger::debug('Clave Idp hosted metadata: ' . print_r($claveConfig, true));
 
 
 
-//Obtain the full URL of this same page
 $metadataUrl = SimpleSAML\Module::getModuleURL('clave/idp/metadata.php');
 
-//Get the SSO url
 $ssoserviceurl = SimpleSAML\Module::getModuleURL('clave/idp/clave-bridge.php');
 
-//Get the signing certificate and key
-$idpcertpem = sspmod_clave_Tools::readCertKeyFile($claveConfig->getString('certificate', null));
-$idpkeypem = sspmod_clave_Tools::readCertKeyFile($claveConfig->getString('privatekey', null));
+$idpcertpem = SimpleSAML\Module\clave\Tools::readCertKeyFile($claveConfig->getString('certificate', null));
+$idpkeypem = SimpleSAML\Module\clave\Tools::readCertKeyFile($claveConfig->getString('privatekey', null));
 
 
 
 
-$eidas = new sspmod_clave_SPlib();
+$eidas = new SimpleSAML\Module\clave\SPlib();
 
 $eidas->setEidasMode();
 
 
-$eidas->setSignatureKeyParams($idpcertpem, $idpkeypem, sspmod_clave_SPlib::RSA_SHA512);
-$eidas->setSignatureParams(sspmod_clave_SPlib::SHA512, sspmod_clave_SPlib::EXC_C14N);
+$eidas->setSignatureKeyParams($idpcertpem, $idpkeypem, SimpleSAML\Module\clave\SPlib::RSA_SHA512);
+$eidas->setSignatureParams(SimpleSAML\Module\clave\SPlib::SHA512, SimpleSAML\Module\clave\SPlib::EXC_C14N);
 
 $eidas->setServiceProviderParams('', $metadataUrl, '');
 
 
-//Print the generated metadata
 header('Content-type: application/xml');
 echo $eidas->generateIdPMetadata($ssoserviceurl);
