@@ -2759,20 +2759,28 @@ class SPlib
             return;
         }
 
-        $prefix = '[' . date('c', time()) . '][' . self::$logLevels[$level] . ']: ';
-
         if (is_object($content) || is_array($content)) {
             $message = print_r($content, true);
         } else {
             $message = $content;
         }
-
-        if (self::$logToStdout) {
-            echo $prefix . $message . "\n";
-        }
-
-        if (self::$logToFile) {
-            file_put_contents(self::$logFile, $prefix . $message . "\n", FILE_APPEND);
+        switch ($level) {
+            case self::LOG_TRACE:
+            case self::LOG_DEBUG:
+                Logger::debug($message);
+                break;
+            case self::LOG_INFO:
+                Logger::info($message);
+                break;
+            case self::LOG_WARN:
+                Logger::warning($message);
+                break;
+            case self::LOG_ERROR:
+                Logger::error($message);
+                break;
+            case self::LOG_CRITICAL:
+                Logger::critical($message);
+                break;
         }
     }
 
@@ -3758,20 +3766,28 @@ class claveAuth
             return;
         }
 
-        $prefix = '[' . date('c', time()) . '][' . self::$logLevels[$level] . ']: ';
-
         if (is_object($content) || is_array($content)) {
             $message = print_r($content, true);
         } else {
             $message = $content;
         }
-
-        if (self::$logToStdout) {
-            echo $prefix . $message . "\n";
-        }
-
-        if (self::$logToFile) {
-            file_put_contents(self::$logFile, $prefix . $message . "\n", FILE_APPEND);
+        switch ($level) {
+            case self::LOG_TRACE:
+            case self::LOG_DEBUG:
+                Logger::debug($message);
+                break;
+            case self::LOG_INFO:
+                Logger::info($message);
+                break;
+            case self::LOG_WARN:
+                Logger::warning($message);
+                break;
+            case self::LOG_ERROR:
+                Logger::error($message);
+                break;
+            case self::LOG_CRITICAL:
+                Logger::critical($message);
+                break;
         }
     }
 
